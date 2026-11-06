@@ -7,6 +7,10 @@
 -- 说明：多态引用（biz_id / reserved_application_id / converted_to_post_id /
 --       pet_ownership_history.arrangement_id/order_id）不加 FK，由应用层约束。
 --       updated_at 由应用层维护（本 DDL 不建触发器）。
+-- 迁移关系：本文件是最终 schema 的单一事实来源（pets 含 deleted_at）。
+--       V1__init_schema.sql = 本文件「基础 19 表」快照（不含 pets.deleted_at，verbatim）；
+--       V2__add_pets_deleted_at.sql = ALTER TABLE pets ADD COLUMN deleted_at timestamptz。
+--       V1 + V2 合并后与本文件等价；已提交的 V1 不被修改。
 -- ============================================================================
 
 -- ---------- 扩展 ----------
@@ -54,7 +58,8 @@ CREATE TABLE pets (
     district              varchar(64),
     version               int NOT NULL DEFAULT 0,                -- 乐观锁
     created_at            timestamptz NOT NULL DEFAULT now(),
-    updated_at            timestamptz NOT NULL DEFAULT now()
+    updated_at            timestamptz NOT NULL DEFAULT now(),
+    deleted_at            timestamptz                            -- 软删除时间（status=DELETED 时写入）
 );
 
 -- 3. pet_images

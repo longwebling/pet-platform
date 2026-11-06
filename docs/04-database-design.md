@@ -60,6 +60,7 @@ users/pets/posts 1 ──── 0..n audit_logs / address_visibility_logs
 | city / district | varchar | 冗余筛选 |
 | version | int NOT NULL DEFAULT 0 | 乐观锁 |
 | created_at / updated_at | timestamptz | |
+| deleted_at | timestamptz NULL | 软删除时间（`status=DELETED` 时写入，其余为 NULL） |
 
 **语义约定（P0-2）**：
 - `publisher_id`：谁发布了这条档案信息（可能是救助者/医院/照护者代发）。
