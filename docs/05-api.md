@@ -6,6 +6,7 @@
 
 - 请求：JSON（查询用 query param）。
 - 返回统一包装：`{ code, message, data }`；错误时 `code` 非 0。
+- 错误码约定：`0` 成功；`40000` 参数错误；`40100` 未登录/验证码错误；`40300` 越权；`40400` 资源不存在；`40900` 状态冲突；`42900` 触发限流；`50000` 服务内部错误。HTTP 状态与 `code` 前三位对应（`40100`→401、`42900`→429）。
 - 分页：`page` / `size`。
 - 幂等：交接/归还确认接口以 `biz_id + event + user` 幂等（重复提交返回当前状态，不重复写库）。
 - 权限：所有写操作在 Service 层显式校验资源归属，越权返回 `403 FORBIDDEN`。
@@ -21,6 +22,45 @@
 | GET | /users/me | 登录 | 当前用户信息 | 本人 | — |
 | PATCH | /users/me | 登录 | 改昵称/头像/简介 | 本人 | 否 |
 | GET | /users/{id} | 登录 | 查看他人公开资料 | 公开 | — |
+
+### 5.1.1 认证请求/返回示例
+
+```
+# 发送验证码
+POST /api/v1/auth/sms-code
+{ "phone": "13800138000" }
+
+→ 成功 200
+{ "code": 0, "data": null }
+
+→ 手机号格式非法 400
+{ "code": 40000, "message": "手机号格式不正确" }
+
+→ 触发限流 429
+{ "code": 42900, "message": "发送过于频繁，请稍后再试" }
+
+# 验证码登录（新用户自动注册）
+POST /api/v1/auth/login
+{ "phone": "13800138000", "code": "123456" }
+
+→ 成功 200
+{ "code": 0, "data": { "token": "<jwt>", "userId": 1 } }
+
+→ 验证码错误/过期 401
+{ "code": 40100, "message": "验证码错误或已过期" }
+
+# 获取当前用户（需 Bearer Token）
+GET /api/v1/users/me
+Authorization: Bearer <jwt>
+
+→ 成功 200
+{ "code": 0, "data": { "id": 1, "phone": "13800138000", "nickname": null, "avatar": null, "bio": null } }
+
+→ 未登录/Token 失效 401
+{ "code": 40100, "message": "未登录或登录已过期" }
+```
+
+> 验证码规则：6 位数字，Redis 中保存 5 分钟；发送限流为单号 60 秒 1 次、单日 10 次。验证码仅存于 Redis（`sms:code:{phone}`），开发环境默认由 `DevSmsSender` 打印日志，生产需注入真实 `SmsSender` 实现。
 
 ## 5.2 宠物档案 API
 

@@ -12,10 +12,11 @@ A pet adoption and temporary foster-care platform for users in China.
 
 ## Architecture
 - Use a modular monolith initially.
-- Keep controllers, services, repositories, DTOs and entities separated.
+- Keep controllers, services, mappers, DTOs and entities separated.
 - Business rules must be implemented in the backend.
 - Frontend clients must not independently implement business state transitions.
 - Keep map provider integration behind an adapter.
+- Detailed package layout & layering rules: use the `/backend-package-architecture` skill (`.claude/skills/backend-package-architecture/SKILL.md`).
 
 ## Development Rules
 - Read relevant docs before using unfamiliar APIs.
