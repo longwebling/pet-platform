@@ -42,4 +42,23 @@ public class PetController {
                                            @RequestBody UpdatePetRequest request) {
         return ApiResponse.ok(petService.update(id, currentUser.id(), request));
     }
+
+    @PostMapping("/{id}/publish")
+    public ApiResponse<PetResponse> publish(@PathVariable Long id,
+                                            @AuthenticationPrincipal CurrentUser currentUser) {
+        return ApiResponse.ok(petService.publish(id, currentUser.id()));
+    }
+
+    @PostMapping("/{id}/archive")
+    public ApiResponse<PetResponse> archive(@PathVariable Long id,
+                                            @AuthenticationPrincipal CurrentUser currentUser) {
+        return ApiResponse.ok(petService.archive(id, currentUser.id()));
+    }
+
+    @PostMapping("/{id}/delete")
+    public ApiResponse<Void> delete(@PathVariable Long id,
+                                    @AuthenticationPrincipal CurrentUser currentUser) {
+        petService.delete(id, currentUser.id());
+        return ApiResponse.ok();
+    }
 }

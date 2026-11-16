@@ -165,4 +165,90 @@ class PetServiceImplTest {
         assertThat(captor.getValue().getSpecies()).isEqualTo("DOG");
         assertThat(captor.getValue().getBreed()).isEqualTo("柯基");
     }
+
+    @Test
+    void publish_notOwner_throws403() {
+        Pet pet = new Pet();
+        pet.setId(1L);
+        pet.setPublisherId(99L);
+        pet.setStatus("DRAFT");
+        when(petMapper.findById(1L)).thenReturn(pet);
+
+        assertThatThrownBy(() -> service.publish(1L, 5L))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void publish_notDraft_throws409() {
+        Pet pet = new Pet();
+        pet.setId(1L);
+        pet.setPublisherId(5L);
+        pet.setStatus("ACTIVE");
+        when(petMapper.findById(1L)).thenReturn(pet);
+
+        assertThatThrownBy(() -> service.publish(1L, 5L))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void publish_success_returnsActive() {
+        Pet draft = new Pet();
+        draft.setId(1L);
+        draft.setPublisherId(5L);
+        draft.setStatus("DRAFT");
+        draft.setSpecies("CAT");
+
+        Pet active = new Pet();
+        active.setId(1L);
+        active.setPublisherId(5L);
+        active.setStatus("ACTIVE");
+        active.setSpecies("CAT");
+        active.setSourceType("OWNED");
+        active.setOwnershipStatus("OWNED");
+        active.setAuthorizationStatus("SELF");
+
+        when(petMapper.findById(1L)).thenReturn(draft, active);
+        when(petMapper.publish(1L, 5L)).thenReturn(1);
+
+        PetResponse response = service.publish(1L, 5L);
+
+        assertThat(response.status()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    void archive_notActive_throws409() {
+        Pet pet = new Pet();
+        pet.setId(1L);
+        pet.setPublisherId(5L);
+        pet.setStatus("DRAFT");
+        when(petMapper.findById(1L)).thenReturn(pet);
+
+        assertThatThrownBy(() -> service.archive(1L, 5L))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void delete_success_softDeletes() {
+        Pet pet = new Pet();
+        pet.setId(1L);
+        pet.setPublisherId(5L);
+        pet.setStatus("ACTIVE");
+        when(petMapper.findById(1L)).thenReturn(pet);
+        when(petMapper.softDelete(1L, 5L)).thenReturn(1);
+
+        service.delete(1L, 5L);
+
+        verify(petMapper).softDelete(1L, 5L);
+    }
+
+    @Test
+    void update_onDeleted_throws404() {
+        when(petMapper.findById(1L)).thenReturn(null);
+
+        UpdatePetRequest request = new UpdatePetRequest(
+                "CAT", null, null, null, null, null, null, null, null, null, null);
+
+        assertThatThrownBy(() -> service.update(1L, 5L, request))
+                .isInstanceOf(NotFoundException.class);
+    }
 }

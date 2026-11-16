@@ -14,4 +14,10 @@ public interface PetMapper {
     Pet findByIdActive(@Param("id") Long id);
 
     int update(Pet pet);
+
+    int publish(@Param("id") Long id, @Param("publisherId") Long publisherId);
+
+    int archive(@Param("id") Long id, @Param("publisherId") Long publisherId);
+
+    int softDelete(@Param("id") Long id, @Param("publisherId") Long publisherId);
 }

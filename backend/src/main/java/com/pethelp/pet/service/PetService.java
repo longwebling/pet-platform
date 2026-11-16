@@ -11,4 +11,10 @@ public interface PetService {
     PetResponse getById(Long petId);
 
     PetResponse update(Long petId, Long currentUserId, UpdatePetRequest request);
+
+    PetResponse publish(Long petId, Long currentUserId);
+
+    PetResponse archive(Long petId, Long currentUserId);
+
+    void delete(Long petId, Long currentUserId);
 }

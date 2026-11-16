@@ -79,8 +79,11 @@ class PetFlowIntegrationTest {
         mockMvc.perform(get("/api/v1/pets/" + petId))
                 .andExpect(status().isNotFound());
 
-        // 本任务无 publish 端点，用 JdbcTemplate 直改 ACTIVE（Task 3 改回走真实端点）
-        jdbcTemplate.update("UPDATE pets SET status = 'ACTIVE' WHERE id = ?", petId);
+        // 发布 → ACTIVE
+        mockMvc.perform(post("/api/v1/pets/" + petId + "/publish")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("ACTIVE"));
 
         MvcResult detail = mockMvc.perform(get("/api/v1/pets/" + petId))
                 .andExpect(status().isOk())
@@ -141,6 +144,64 @@ class PetFlowIntegrationTest {
                 "SELECT (location IS NOT NULL) AS has_location, geo_hash FROM pets WHERE id = ?", petId);
         assertThat(row.get("has_location")).isEqualTo(true);
         assertThat((String) row.get("geo_hash")).hasSize(6);
+    }
+
+    @Test
+    void stateTransitions_guardInvalidTransitions() throws Exception {
+        String phone = "13900138013";
+        String token = loginAndGetToken(phone);
+        long petId = createPet(token);
+
+        // 归档 DRAFT → 409
+        mockMvc.perform(post("/api/v1/pets/" + petId + "/archive")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(40900));
+
+        // 发布 → ACTIVE
+        mockMvc.perform(post("/api/v1/pets/" + petId + "/publish")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("ACTIVE"));
+
+        // 重复发布 → 409
+        mockMvc.perform(post("/api/v1/pets/" + petId + "/publish")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(40900));
+
+        // 归档 → ARCHIVED
+        mockMvc.perform(post("/api/v1/pets/" + petId + "/archive")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("ARCHIVED"));
+
+        // 归档后公开 GET → 404
+        mockMvc.perform(get("/api/v1/pets/" + petId))
+                .andExpect(status().isNotFound());
+
+        // 第二个宠物：删除 → DELETED 且公开 GET → 404
+        long petId2 = createPet(token);
+        mockMvc.perform(post("/api/v1/pets/" + petId2 + "/publish")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/pets/" + petId2 + "/delete")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+        mockMvc.perform(get("/api/v1/pets/" + petId2))
+                .andExpect(status().isNotFound());
+    }
+
+    private long createPet(String token) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/pets")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"species\":\"CAT\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString())
+                .path("data").path("id").asLong();
     }
 
     private String loginAndGetToken(String phone) throws Exception {

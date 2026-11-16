@@ -93,6 +93,59 @@ public class PetServiceImpl implements PetService {
         return toResponse(petMapper.findById(petId));
     }
 
+    @Override
+    public PetResponse publish(Long petId, Long currentUserId) {
+        Pet pet = petMapper.findById(petId);
+        if (pet == null) {
+            throw new NotFoundException("宠物不存在");
+        }
+        if (!pet.getPublisherId().equals(currentUserId)) {
+            throw new ForbiddenException("仅档案发布者可操作");
+        }
+        if (!"DRAFT".equals(pet.getStatus())) {
+            throw new ConflictException("当前状态不可发布");
+        }
+        if (petMapper.publish(petId, currentUserId) == 0) {
+            throw new ConflictException("当前状态不可发布");
+        }
+        return toResponse(petMapper.findById(petId));
+    }
+
+    @Override
+    public PetResponse archive(Long petId, Long currentUserId) {
+        Pet pet = petMapper.findById(petId);
+        if (pet == null) {
+            throw new NotFoundException("宠物不存在");
+        }
+        if (!pet.getPublisherId().equals(currentUserId)) {
+            throw new ForbiddenException("仅档案发布者可操作");
+        }
+        if (!"ACTIVE".equals(pet.getStatus())) {
+            throw new ConflictException("当前状态不可归档");
+        }
+        if (petMapper.archive(petId, currentUserId) == 0) {
+            throw new ConflictException("当前状态不可归档");
+        }
+        return toResponse(petMapper.findById(petId));
+    }
+
+    @Override
+    public void delete(Long petId, Long currentUserId) {
+        Pet pet = petMapper.findById(petId);
+        if (pet == null) {
+            throw new NotFoundException("宠物不存在");
+        }
+        if (!pet.getPublisherId().equals(currentUserId)) {
+            throw new ForbiddenException("仅档案发布者可操作");
+        }
+        if (!"ACTIVE".equals(pet.getStatus())) {
+            throw new ConflictException("当前状态不可删除");
+        }
+        if (petMapper.softDelete(petId, currentUserId) == 0) {
+            throw new ConflictException("当前状态不可删除");
+        }
+    }
+
     private void validate(String species, String breed, String age, String gender,
                           String city, String district, Double lng, Double lat) {
         if (species == null || species.isBlank()) {
