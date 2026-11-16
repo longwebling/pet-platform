@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.pethelp.pet.mapper.PetImageMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO pet_images (pet_id, uploader_id, file_key, file_type, review_status)
+        VALUES (#{petId}, #{uploaderId}, #{fileKey}, #{fileType}, #{reviewStatus})
+    </insert>
+
+    <select id="countByPetIdAndType" resultType="int">
+        SELECT COUNT(*) FROM pet_images WHERE pet_id = #{petId} AND file_type = #{fileType}
+    </select>
+
+    <select id="findByPetIdPublicApproved" resultType="com.pethelp.pet.entity.PetImage">
+        SELECT id, pet_id, uploader_id, file_key, file_type, review_status
+        FROM pet_images
+        WHERE pet_id = #{petId}
+          AND file_type = 'PHOTO'
+          AND access_level = 'PUBLIC'
+          AND review_status = 'APPROVED'
+        ORDER BY id
+    </select>
+
+</mapper>
