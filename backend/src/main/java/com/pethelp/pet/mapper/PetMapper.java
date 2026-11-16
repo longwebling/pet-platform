@@ -12,4 +12,6 @@ public interface PetMapper {
     Pet findById(@Param("id") Long id);
 
     Pet findByIdActive(@Param("id") Long id);
+
+    int update(Pet pet);
 }

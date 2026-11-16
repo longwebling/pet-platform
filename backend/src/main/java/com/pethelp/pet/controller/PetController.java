@@ -3,10 +3,12 @@ package com.pethelp.pet.controller;
 import com.pethelp.common.ApiResponse;
 import com.pethelp.pet.dto.CreatePetRequest;
 import com.pethelp.pet.dto.PetResponse;
+import com.pethelp.pet.dto.UpdatePetRequest;
 import com.pethelp.pet.service.PetService;
 import com.pethelp.security.CurrentUser;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -32,5 +34,12 @@ public class PetController {
     @GetMapping("/{id}")
     public ApiResponse<PetResponse> getById(@PathVariable Long id) {
         return ApiResponse.ok(petService.getById(id));
+    }
+
+    @PatchMapping("/{id}")
+    public ApiResponse<PetResponse> update(@PathVariable Long id,
+                                           @AuthenticationPrincipal CurrentUser currentUser,
+                                           @RequestBody UpdatePetRequest request) {
+        return ApiResponse.ok(petService.update(id, currentUser.id(), request));
     }
 }

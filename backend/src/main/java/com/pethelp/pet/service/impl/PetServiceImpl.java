@@ -1,9 +1,12 @@
 package com.pethelp.pet.service.impl;
 
 import com.pethelp.common.exception.BadRequestException;
+import com.pethelp.common.exception.ConflictException;
+import com.pethelp.common.exception.ForbiddenException;
 import com.pethelp.common.exception.NotFoundException;
 import com.pethelp.pet.dto.CreatePetRequest;
 import com.pethelp.pet.dto.PetResponse;
+import com.pethelp.pet.dto.UpdatePetRequest;
 import com.pethelp.pet.entity.Pet;
 import com.pethelp.pet.mapper.PetMapper;
 import com.pethelp.pet.service.PetService;
@@ -25,7 +28,8 @@ public class PetServiceImpl implements PetService {
 
     @Override
     public PetResponse create(Long currentUserId, CreatePetRequest request) {
-        validate(request);
+        validate(request.species(), request.breed(), request.age(), request.gender(),
+                request.city(), request.district(), request.lng(), request.lat());
         Pet pet = new Pet();
         pet.setPublisherId(currentUserId);
         pet.setOwnerId(currentUserId);
@@ -58,36 +62,68 @@ public class PetServiceImpl implements PetService {
         return toResponse(pet);
     }
 
-    private void validate(CreatePetRequest r) {
-        if (r.species() == null || r.species().isBlank()) {
+    @Override
+    public PetResponse update(Long petId, Long currentUserId, UpdatePetRequest request) {
+        validate(request.species(), request.breed(), request.age(), request.gender(),
+                request.city(), request.district(), request.lng(), request.lat());
+        Pet pet = petMapper.findById(petId);
+        if (pet == null) {
+            throw new NotFoundException("宠物不存在");
+        }
+        if (!pet.getPublisherId().equals(currentUserId)) {
+            throw new ForbiddenException("仅档案发布者可操作");
+        }
+        if (!("DRAFT".equals(pet.getStatus()) || "ACTIVE".equals(pet.getStatus()))) {
+            throw new ConflictException("当前状态不可编辑");
+        }
+        pet.setSpecies(request.species());
+        pet.setBreed(request.breed());
+        pet.setAge(request.age());
+        pet.setGender(request.gender());
+        pet.setSterilized(request.sterilized());
+        pet.setVaccinated(request.vaccinated());
+        pet.setHealthDesc(request.healthDesc());
+        pet.setLng(request.lng());
+        pet.setLat(request.lat());
+        pet.setCity(request.city());
+        pet.setDistrict(request.district());
+        if (petMapper.update(pet) == 0) {
+            throw new ConflictException("当前状态不可编辑");
+        }
+        return toResponse(petMapper.findById(petId));
+    }
+
+    private void validate(String species, String breed, String age, String gender,
+                          String city, String district, Double lng, Double lat) {
+        if (species == null || species.isBlank()) {
             throw new BadRequestException("物种不能为空");
         }
-        if (!SPECIES.contains(r.species())) {
+        if (!SPECIES.contains(species)) {
             throw new BadRequestException("物种取值非法");
         }
-        if (r.gender() != null && !GENDERS.contains(r.gender())) {
+        if (gender != null && !GENDERS.contains(gender)) {
             throw new BadRequestException("性别取值非法");
         }
-        if (r.breed() != null && r.breed().length() > 64) {
+        if (breed != null && breed.length() > 64) {
             throw new BadRequestException("品种过长");
         }
-        if (r.age() != null && r.age().length() > 32) {
+        if (age != null && age.length() > 32) {
             throw new BadRequestException("年龄过长");
         }
-        if (r.city() != null && r.city().length() > 64) {
+        if (city != null && city.length() > 64) {
             throw new BadRequestException("城市过长");
         }
-        if (r.district() != null && r.district().length() > 64) {
+        if (district != null && district.length() > 64) {
             throw new BadRequestException("区县过长");
         }
-        if ((r.lng() == null) != (r.lat() == null)) {
+        if ((lng == null) != (lat == null)) {
             throw new BadRequestException("经纬度需成对提供");
         }
-        if (r.lng() != null) {
-            if (r.lng() < -180 || r.lng() > 180) {
+        if (lng != null) {
+            if (lng < -180 || lng > 180) {
                 throw new BadRequestException("经度越界");
             }
-            if (r.lat() < -90 || r.lat() > 90) {
+            if (lat < -90 || lat > 90) {
                 throw new BadRequestException("纬度越界");
             }
         }

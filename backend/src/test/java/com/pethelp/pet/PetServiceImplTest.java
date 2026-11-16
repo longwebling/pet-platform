@@ -1,9 +1,12 @@
 package com.pethelp.pet;
 
 import com.pethelp.common.exception.BadRequestException;
+import com.pethelp.common.exception.ConflictException;
+import com.pethelp.common.exception.ForbiddenException;
 import com.pethelp.common.exception.NotFoundException;
 import com.pethelp.pet.dto.CreatePetRequest;
 import com.pethelp.pet.dto.PetResponse;
+import com.pethelp.pet.dto.UpdatePetRequest;
 import com.pethelp.pet.entity.Pet;
 import com.pethelp.pet.mapper.PetMapper;
 import com.pethelp.pet.service.PetService;
@@ -98,5 +101,68 @@ class PetServiceImplTest {
 
         assertThatThrownBy(() -> service.getById(99L))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void update_notOwner_throws403() {
+        Pet pet = new Pet();
+        pet.setId(1L);
+        pet.setPublisherId(99L);
+        pet.setStatus("DRAFT");
+        when(petMapper.findById(1L)).thenReturn(pet);
+
+        UpdatePetRequest request = new UpdatePetRequest(
+                "CAT", null, null, null, null, null, null, null, null, null, null);
+
+        assertThatThrownBy(() -> service.update(1L, 5L, request))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void update_wrongStatus_throws409() {
+        Pet pet = new Pet();
+        pet.setId(1L);
+        pet.setPublisherId(5L);
+        pet.setStatus("ARCHIVED");
+        when(petMapper.findById(1L)).thenReturn(pet);
+
+        UpdatePetRequest request = new UpdatePetRequest(
+                "CAT", null, null, null, null, null, null, null, null, null, null);
+
+        assertThatThrownBy(() -> service.update(1L, 5L, request))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void update_fullReplace_returnsUpdated() {
+        Pet existing = new Pet();
+        existing.setId(1L);
+        existing.setPublisherId(5L);
+        existing.setStatus("DRAFT");
+        existing.setSpecies("CAT");
+
+        Pet updated = new Pet();
+        updated.setId(1L);
+        updated.setPublisherId(5L);
+        updated.setStatus("DRAFT");
+        updated.setSpecies("DOG");
+        updated.setBreed("柯基");
+        updated.setSourceType("OWNED");
+        updated.setOwnershipStatus("OWNED");
+        updated.setAuthorizationStatus("SELF");
+
+        when(petMapper.findById(1L)).thenReturn(existing, updated);
+        when(petMapper.update(any(Pet.class))).thenReturn(1);
+
+        PetResponse response = service.update(1L, 5L, new UpdatePetRequest(
+                "DOG", "柯基", "3岁", null, null, null, null, null, null, null, null));
+
+        assertThat(response.species()).isEqualTo("DOG");
+        assertThat(response.breed()).isEqualTo("柯基");
+
+        ArgumentCaptor<Pet> captor = ArgumentCaptor.forClass(Pet.class);
+        verify(petMapper).update(captor.capture());
+        assertThat(captor.getValue().getSpecies()).isEqualTo("DOG");
+        assertThat(captor.getValue().getBreed()).isEqualTo("柯基");
     }
 }
