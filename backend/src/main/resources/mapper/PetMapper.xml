@@ -30,4 +30,32 @@
         FROM pets WHERE id = #{id} AND status = 'ACTIVE'
     </select>
 
+    <update id="update">
+        UPDATE pets SET
+            species = #{species}, breed = #{breed}, age = #{age}, gender = #{gender},
+            sterilized = #{sterilized}, vaccinated = #{vaccinated}, health_desc = #{healthDesc},
+            location = CASE WHEN #{lng,jdbcType=DOUBLE} IS NULL OR #{lat,jdbcType=DOUBLE} IS NULL THEN NULL
+                            ELSE ST_SetSRID(ST_MakePoint(#{lng,jdbcType=DOUBLE}, #{lat,jdbcType=DOUBLE}), 4326) END,
+            geo_hash = CASE WHEN #{lng,jdbcType=DOUBLE} IS NULL OR #{lat,jdbcType=DOUBLE} IS NULL THEN NULL
+                            ELSE ST_GeoHash(ST_SetSRID(ST_MakePoint(#{lng,jdbcType=DOUBLE}, #{lat,jdbcType=DOUBLE}), 4326), 6) END,
+            city = #{city}, district = #{district},
+            version = version + 1
+        WHERE id = #{id} AND publisher_id = #{publisherId} AND status IN ('DRAFT','ACTIVE')
+    </update>
+
+    <update id="publish">
+        UPDATE pets SET status = 'ACTIVE', version = version + 1
+        WHERE id = #{id} AND publisher_id = #{publisherId} AND status = 'DRAFT'
+    </update>
+
+    <update id="archive">
+        UPDATE pets SET status = 'ARCHIVED', version = version + 1
+        WHERE id = #{id} AND publisher_id = #{publisherId} AND status = 'ACTIVE'
+    </update>
+
+    <update id="softDelete">
+        UPDATE pets SET status = 'DELETED', deleted_at = now(), version = version + 1
+        WHERE id = #{id} AND publisher_id = #{publisherId} AND status = 'ACTIVE'
+    </update>
+
 </mapper>
