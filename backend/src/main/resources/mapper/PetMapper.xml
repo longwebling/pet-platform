@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.pethelp.pet.mapper.PetMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO pets (publisher_id, owner_id, current_custodian_id, source_type, ownership_status,
+                          authorization_status, species, breed, age, gender, sterilized, vaccinated,
+                          health_desc, status, location, geo_hash, city, district)
+        VALUES (#{publisherId}, #{ownerId}, #{currentCustodianId}, #{sourceType}, #{ownershipStatus},
+                #{authorizationStatus}, #{species}, #{breed}, #{age}, #{gender}, #{sterilized}, #{vaccinated},
+                #{healthDesc}, #{status},
+                CASE WHEN #{lng,jdbcType=DOUBLE} IS NULL OR #{lat,jdbcType=DOUBLE} IS NULL THEN NULL
+                     ELSE ST_SetSRID(ST_MakePoint(#{lng,jdbcType=DOUBLE}, #{lat,jdbcType=DOUBLE}), 4326) END,
+                CASE WHEN #{lng,jdbcType=DOUBLE} IS NULL OR #{lat,jdbcType=DOUBLE} IS NULL THEN NULL
+                     ELSE ST_GeoHash(ST_SetSRID(ST_MakePoint(#{lng,jdbcType=DOUBLE}, #{lat,jdbcType=DOUBLE}), 4326), 6) END,
+                #{city}, #{district})
+    </insert>
+
+    <select id="findById" resultType="com.pethelp.pet.entity.Pet">
+        SELECT id, publisher_id, owner_id, current_custodian_id, source_type, ownership_status,
+               authorization_status, species, breed, age, gender, sterilized, vaccinated,
+               health_desc, status, geo_hash, city, district
+        FROM pets WHERE id = #{id} AND status != 'DELETED'
+    </select>
+
+    <select id="findByIdActive" resultType="com.pethelp.pet.entity.Pet">
+        SELECT id, publisher_id, owner_id, current_custodian_id, source_type, ownership_status,
+               authorization_status, species, breed, age, gender, sterilized, vaccinated,
+               health_desc, status, geo_hash, city, district
+        FROM pets WHERE id = #{id} AND status = 'ACTIVE'
+    </select>
+
+</mapper>
