@@ -87,7 +87,12 @@ public class PetImageServiceImpl implements PetImageService {
         image.setFileKey(fileKey);
         image.setFileType("PHOTO");
         image.setReviewStatus(reviewStatus);
-        petImageMapper.insert(image);
+        try {
+            petImageMapper.insert(image);
+        } catch (RuntimeException e) {
+            objectStorage.delete(fileKey);
+            throw e;
+        }
         return new PetImageResponse(image.getId(), petId, "PHOTO", reviewStatus, null);
     }
 

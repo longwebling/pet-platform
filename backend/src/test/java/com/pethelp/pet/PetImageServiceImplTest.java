@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -134,6 +135,21 @@ class PetImageServiceImplTest {
 
         assertThatThrownBy(() -> service.upload(1L, 5L, PNG))
                 .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void upload_insertFails_deletesStoredObject() {
+        when(petMapper.findById(1L)).thenReturn(pet(5L, "DRAFT"));
+        when(petImageMapper.countByPetIdAndType(1L, "PHOTO")).thenReturn(0);
+        when(imageReviewService.review(any(byte[].class), anyString())).thenReturn("APPROVED");
+        doThrow(new RuntimeException("db down")).when(petImageMapper).insert(any(PetImage.class));
+
+        assertThatThrownBy(() -> service.upload(1L, 5L, PNG))
+                .isInstanceOf(RuntimeException.class);
+
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(objectStorage).put(keyCaptor.capture(), eq(PNG), eq("image/png"));
+        verify(objectStorage).delete(keyCaptor.getValue());
     }
 
     @Test

@@ -17,4 +17,9 @@ public class InMemoryObjectStorage implements ObjectStorage {
     public String signedUrl(String key, Duration ttl) {
         return "memory://" + key;
     }
+
+    @Override
+    public void delete(String key) {
+        store.remove(key);
+    }
 }

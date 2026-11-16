@@ -47,4 +47,14 @@ class OssObjectStorageTest {
         long delta = captor.getValue().getTime() - System.currentTimeMillis();
         assertThat(delta).isBetween(3_500_000L, 3_650_000L);
     }
+
+    @Test
+    void delete_delegatesToOssDeleteObject() {
+        OSS oss = mock(OSS.class);
+        OssObjectStorage storage = new OssObjectStorage(oss, "bucket");
+
+        storage.delete("pets/1/a.jpg");
+
+        verify(oss).deleteObject(eq("bucket"), eq("pets/1/a.jpg"));
+    }
 }

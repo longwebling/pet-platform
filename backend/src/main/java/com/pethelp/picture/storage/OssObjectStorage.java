@@ -30,4 +30,9 @@ public class OssObjectStorage implements ObjectStorage {
         Date expiration = new Date(System.currentTimeMillis() + ttl.toMillis());
         return oss.generatePresignedUrl(bucket, key, expiration, HttpMethod.GET).toString();
     }
+
+    @Override
+    public void delete(String key) {
+        oss.deleteObject(bucket, key);
+    }
 }
