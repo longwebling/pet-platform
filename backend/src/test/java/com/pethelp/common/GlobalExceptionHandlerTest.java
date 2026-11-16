@@ -4,6 +4,7 @@ import com.pethelp.common.exception.BusinessException;
 import com.pethelp.common.exception.InvalidSmsCodeException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,5 +29,14 @@ class GlobalExceptionHandlerTest {
 
         assertThat(response.getStatusCode().value()).isEqualTo(500);
         assertThat(response.getBody().code()).isEqualTo(50000);
+    }
+
+    @Test
+    void handleMaxUploadSizeExceeded_returns400() {
+        ResponseEntity<ApiResponse<Void>> response =
+                handler.handleMaxUpload(new MaxUploadSizeExceededException(1024));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(400);
+        assertThat(response.getBody().code()).isEqualTo(40000);
     }
 }
