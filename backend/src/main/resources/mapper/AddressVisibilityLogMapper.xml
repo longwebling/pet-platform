@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.pethelp.pet.mapper.AddressVisibilityLogMapper">
+
+    <insert id="insert">
+        INSERT INTO address_visibility_logs (viewer_id, pet_id, post_id, address_type)
+        VALUES (#{viewerId}, #{petId}, #{postId}, #{addressType})
+    </insert>
+
+</mapper>

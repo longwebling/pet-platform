@@ -4,6 +4,8 @@ import com.pethelp.pet.entity.Pet;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.Map;
+
 @Mapper
 public interface PetMapper {
 
@@ -20,4 +22,6 @@ public interface PetMapper {
     int archive(@Param("id") Long id, @Param("publisherId") Long publisherId);
 
     int softDelete(@Param("id") Long id, @Param("publisherId") Long publisherId);
+
+    Map<String, Object> findExactLocation(@Param("id") Long id);
 }

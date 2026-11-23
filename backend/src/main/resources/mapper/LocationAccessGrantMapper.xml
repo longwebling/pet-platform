@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.pethelp.pet.mapper.LocationAccessGrantMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO location_access_grants (grantor_id, grantee_id, pet_id, location_type, status)
+        VALUES (#{grantorId}, #{granteeId}, #{petId}, #{locationType}, #{status})
+    </insert>
+
+    <select id="findById" resultType="com.pethelp.pet.entity.LocationAccessGrant">
+        SELECT id, grantor_id, grantee_id, pet_id, location_type, status
+        FROM location_access_grants WHERE id = #{id}
+    </select>
+
+    <select id="findActiveByGranteeAndPet" resultType="com.pethelp.pet.entity.LocationAccessGrant">
+        SELECT id, grantor_id, grantee_id, pet_id, location_type, status
+        FROM location_access_grants
+        WHERE grantee_id = #{granteeId} AND pet_id = #{petId} AND status = 'ACTIVE'
+        LIMIT 1
+    </select>
+
+    <update id="revoke">
+        UPDATE location_access_grants SET status = 'REVOKED', revoked_at = now()
+        WHERE id = #{id} AND grantor_id = #{grantorId} AND status = 'ACTIVE'
+    </update>
+
+</mapper>
