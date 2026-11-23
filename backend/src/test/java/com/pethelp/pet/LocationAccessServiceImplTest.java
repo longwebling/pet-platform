@@ -177,6 +177,22 @@ class LocationAccessServiceImplTest {
     }
 
     @Test
+    void getExactLocation_grantee_noLocation_writesNoAudit() {
+        Pet pet = new Pet();
+        pet.setId(1L);
+        pet.setPublisherId(99L);
+        when(petMapper.findById(1L)).thenReturn(pet);
+        LocationAccessGrant grant = new LocationAccessGrant();
+        grant.setGranteeId(5L);
+        when(grantMapper.findActiveByGranteeAndPet(5L, 1L)).thenReturn(grant);
+        when(petMapper.findExactLocation(1L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.getExactLocation(1L, 5L))
+                .isInstanceOf(NotFoundException.class);
+        verify(visibilityLogMapper, never()).insert(any());
+    }
+
+    @Test
     void revoke_notGrantor_throws403() {
         LocationAccessGrant grant = new LocationAccessGrant();
         grant.setId(10L);

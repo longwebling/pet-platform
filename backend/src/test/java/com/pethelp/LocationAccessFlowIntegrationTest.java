@@ -210,6 +210,25 @@ class LocationAccessFlowIntegrationTest {
                 .andExpect(jsonPath("$.code").value(40400));
     }
 
+    @Test
+    void granteeView_noLocation_404_noAudit() throws Exception {
+        Credentials owner = login("13900138190");
+        Credentials grantee = login("13900138191");
+
+        long petId = createPet(owner.token());
+        publish(owner.token(), petId);
+        grant(owner.token(), petId, grantee.userId());
+
+        mockMvc.perform(get("/api/v1/pets/" + petId + "/exact-location")
+                        .header("Authorization", "Bearer " + grantee.token()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40400));
+
+        Integer auditCount = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM address_visibility_logs WHERE pet_id = ?", Integer.class, petId);
+        assertThat(auditCount).isZero();
+    }
+
     private long createPet(String token) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/pets")
                         .header("Authorization", "Bearer " + token)

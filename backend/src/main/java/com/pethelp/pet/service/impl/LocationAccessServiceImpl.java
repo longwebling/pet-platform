@@ -82,10 +82,12 @@ public class LocationAccessServiceImpl implements LocationAccessService {
         if (pet == null) {
             throw new NotFoundException("宠物不存在");
         }
-        if (!pet.getPublisherId().equals(currentUserId)) {
-            if (grantMapper.findActiveByGranteeAndPet(currentUserId, petId) == null) {
-                throw new ForbiddenException("无权查看精确位置");
-            }
+        boolean isOwner = pet.getPublisherId().equals(currentUserId);
+        if (!isOwner && grantMapper.findActiveByGranteeAndPet(currentUserId, petId) == null) {
+            throw new ForbiddenException("无权查看精确位置");
+        }
+        ExactLocationResponse response = resolveExactLocation(petId);
+        if (!isOwner) {
             AddressVisibilityLog log = new AddressVisibilityLog();
             log.setViewerId(currentUserId);
             log.setPetId(petId);
@@ -93,7 +95,7 @@ public class LocationAccessServiceImpl implements LocationAccessService {
             log.setAddressType("EXACT");
             visibilityLogMapper.insert(log);
         }
-        return resolveExactLocation(petId);
+        return response;
     }
 
     @Override
