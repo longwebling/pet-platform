@@ -15,7 +15,7 @@ import com.pethelp.post.mapper.PostMapper;
 import com.pethelp.post.service.PostService;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -70,7 +70,7 @@ public class PostServiceImpl implements PostService {
         post.setTitle(request.title());
         post.setDescription(request.description());
         post.setStatus("OPEN");
-        post.setVerifiedAt(LocalDateTime.now());
+        post.setVerifiedAt(OffsetDateTime.now());
         postMapper.insert(post);
         post.setSpecies(pet.getSpecies());
         post.setGeoHash(pet.getGeoHash());

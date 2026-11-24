@@ -1,6 +1,6 @@
 package com.pethelp.post.entity;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public class PetPost {
 
@@ -11,14 +11,14 @@ public class PetPost {
     private String title;
     private String description;
     private String careType;
-    private LocalDateTime careStartTime;
-    private LocalDateTime careEndTime;
+    private OffsetDateTime careStartTime;
+    private OffsetDateTime careEndTime;
     private String status;
     private Long reservedApplicationId;
     private Long convertedToPostId;
     private String rejectReason;
-    private LocalDateTime verifiedAt;
-    private LocalDateTime completedAt;
+    private OffsetDateTime verifiedAt;
+    private OffsetDateTime completedAt;
     private Integer version;
     private String species;
     private String geoHash;
@@ -81,19 +81,19 @@ public class PetPost {
         this.careType = careType;
     }
 
-    public LocalDateTime getCareStartTime() {
+    public OffsetDateTime getCareStartTime() {
         return careStartTime;
     }
 
-    public void setCareStartTime(LocalDateTime careStartTime) {
+    public void setCareStartTime(OffsetDateTime careStartTime) {
         this.careStartTime = careStartTime;
     }
 
-    public LocalDateTime getCareEndTime() {
+    public OffsetDateTime getCareEndTime() {
         return careEndTime;
     }
 
-    public void setCareEndTime(LocalDateTime careEndTime) {
+    public void setCareEndTime(OffsetDateTime careEndTime) {
         this.careEndTime = careEndTime;
     }
 
@@ -129,19 +129,19 @@ public class PetPost {
         this.rejectReason = rejectReason;
     }
 
-    public LocalDateTime getVerifiedAt() {
+    public OffsetDateTime getVerifiedAt() {
         return verifiedAt;
     }
 
-    public void setVerifiedAt(LocalDateTime verifiedAt) {
+    public void setVerifiedAt(OffsetDateTime verifiedAt) {
         this.verifiedAt = verifiedAt;
     }
 
-    public LocalDateTime getCompletedAt() {
+    public OffsetDateTime getCompletedAt() {
         return completedAt;
     }
 
-    public void setCompletedAt(LocalDateTime completedAt) {
+    public void setCompletedAt(OffsetDateTime completedAt) {
         this.completedAt = completedAt;
     }
 
