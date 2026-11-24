@@ -176,4 +176,16 @@ class PostServiceImplTest {
         assertThatThrownBy(() -> service.convertToAdoption(1L, 5L))
                 .isInstanceOf(ConflictException.class);
     }
+
+    @Test
+    void list_pageZero_throws400() {
+        assertThatThrownBy(() -> service.list("ADOPTION", null, 0, 20))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void list_negativeSize_throws400() {
+        assertThatThrownBy(() -> service.list(null, null, 1, -1))
+                .isInstanceOf(BadRequestException.class);
+    }
 }

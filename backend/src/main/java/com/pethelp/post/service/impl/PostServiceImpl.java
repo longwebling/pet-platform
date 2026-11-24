@@ -90,6 +90,9 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public List<PostResponse> list(String postType, String species, int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new BadRequestException("分页参数非法");
+        }
         int offset = (page - 1) * size;
         return postMapper.list(postType, species, offset, size).stream()
                 .map(this::toResponse)

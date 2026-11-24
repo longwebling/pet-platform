@@ -193,6 +193,7 @@ class AdoptionApplicationServiceImplTest {
 
         when(arrangementService.create(1L, 10L, 30L, 7L, 8L)).thenReturn(40L);
         when(adoptionApplicationMapper.rejectOthers(10L, 30L, "该宠物已被其他申请人匹配")).thenReturn(2);
+        when(adoptionApplicationMapper.approve(30L)).thenReturn(1);
 
         ApproveResponse response = service.approve(30L, 5L);
 
@@ -203,5 +204,44 @@ class AdoptionApplicationServiceImplTest {
         verify(arrangementService).create(1L, 10L, 30L, 7L, 8L);
         verify(adoptionApplicationMapper).rejectOthers(10L, 30L, "该宠物已被其他申请人匹配");
         verify(adoptionApplicationMapper).approve(30L);
+    }
+
+    @Test
+    void approve_approveRowCountZero_throws409() {
+        when(adoptionApplicationMapper.findById(30L)).thenReturn(pendingApplication());
+        when(postMapper.findByIdForUpdate(10L)).thenReturn(adoptionPost());
+        when(dispositionAuthorizationService.canApproveAdoption(1L, 5L)).thenReturn(true);
+        when(postMapper.reserve(10L, 30L)).thenReturn(1);
+
+        Pet pet = new Pet();
+        pet.setId(1L);
+        pet.setCurrentCustodianId(8L);
+        when(petMapper.findById(1L)).thenReturn(pet);
+
+        when(arrangementService.create(1L, 10L, 30L, 7L, 8L)).thenReturn(40L);
+        when(adoptionApplicationMapper.rejectOthers(10L, 30L, "该宠物已被其他申请人匹配")).thenReturn(2);
+        when(adoptionApplicationMapper.approve(30L)).thenReturn(0);
+
+        assertThatThrownBy(() -> service.approve(30L, 5L))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void withdraw_withdrawRowCountZero_throws409() {
+        when(adoptionApplicationMapper.findById(30L)).thenReturn(pendingApplication());
+        when(adoptionApplicationMapper.withdraw(30L, 7L)).thenReturn(0);
+
+        assertThatThrownBy(() -> service.withdraw(30L, 7L))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void reject_rejectRowCountZero_throws409() {
+        when(adoptionApplicationMapper.findById(30L)).thenReturn(pendingApplication());
+        when(postMapper.findById(10L)).thenReturn(adoptionPost());
+        when(adoptionApplicationMapper.reject(30L)).thenReturn(0);
+
+        assertThatThrownBy(() -> service.reject(30L, 5L))
+                .isInstanceOf(ConflictException.class);
     }
 }

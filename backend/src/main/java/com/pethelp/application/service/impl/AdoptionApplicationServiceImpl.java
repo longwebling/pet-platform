@@ -78,7 +78,9 @@ public class AdoptionApplicationServiceImpl implements AdoptionApplicationServic
         if (!currentUserId.equals(application.getAdopterId())) {
             throw new ForbiddenException("仅申请人可撤回");
         }
-        adoptionApplicationMapper.withdraw(applicationId, application.getAdopterId());
+        if (adoptionApplicationMapper.withdraw(applicationId, application.getAdopterId()) != 1) {
+            throw new ConflictException("该申请已处理");
+        }
         return toResponse(application, "WITHDRAWN");
     }
 
@@ -99,7 +101,9 @@ public class AdoptionApplicationServiceImpl implements AdoptionApplicationServic
         if (!currentUserId.equals(post.getPublisherId())) {
             throw new ForbiddenException("仅发布者可拒绝");
         }
-        adoptionApplicationMapper.reject(applicationId);
+        if (adoptionApplicationMapper.reject(applicationId) != 1) {
+            throw new ConflictException("该申请已处理");
+        }
         return toResponse(application, "REJECTED");
     }
 
@@ -143,7 +147,9 @@ public class AdoptionApplicationServiceImpl implements AdoptionApplicationServic
                 application.getAdopterId(), custodianId);
 
         int rejectedOthers = adoptionApplicationMapper.rejectOthers(postId, applicationId, REJECT_OTHERS_REASON);
-        adoptionApplicationMapper.approve(applicationId);
+        if (adoptionApplicationMapper.approve(applicationId) != 1) {
+            throw new ConflictException("该申请已处理");
+        }
 
         return new ApproveResponse(arrangementId, "RESERVED", rejectedOthers);
     }
