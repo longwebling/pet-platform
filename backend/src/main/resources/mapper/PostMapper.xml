@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.pethelp.post.mapper.PostMapper">
+
+    <sql id="postColumns">
+        pp.id, pp.pet_id, pp.publisher_id, pp.post_type, pp.title, pp.description,
+        pp.care_type, pp.care_start_time, pp.care_end_time, pp.status,
+        pp.reserved_application_id, pp.converted_to_post_id, pp.reject_reason,
+        pp.verified_at, pp.completed_at, pp.version,
+        p.species, p.geo_hash, p.city, p.district
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO pet_posts (pet_id, publisher_id, post_type, title, description, status, verified_at)
+        VALUES (#{petId}, #{publisherId}, #{postType}, #{title}, #{description}, #{status}, #{verifiedAt})
+    </insert>
+
+    <select id="findById" resultType="com.pethelp.post.entity.PetPost">
+        SELECT <include refid="postColumns"/>
+        FROM pet_posts pp
+        LEFT JOIN pets p ON pp.pet_id = p.id
+        WHERE pp.id = #{id}
+    </select>
+
+    <select id="findByIdForUpdate" resultType="com.pethelp.post.entity.PetPost">
+        SELECT <include refid="postColumns"/>
+        FROM pet_posts pp
+        LEFT JOIN pets p ON pp.pet_id = p.id
+        WHERE pp.id = #{id}
+        FOR UPDATE
+    </select>
+
+    <select id="list" resultType="com.pethelp.post.entity.PetPost">
+        SELECT <include refid="postColumns"/>
+        FROM pet_posts pp
+        LEFT JOIN pets p ON pp.pet_id = p.id
+        <where>
+            <if test="postType != null and postType != ''">
+                AND pp.post_type = #{postType}
+            </if>
+            <if test="species != null and species != ''">
+                AND p.species = #{species}
+            </if>
+        </where>
+        ORDER BY pp.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <update id="reserve">
+        UPDATE pet_posts
+        SET status = 'RESERVED', reserved_application_id = #{applicationId}, version = version + 1
+        WHERE id = #{id} AND status = 'OPEN'
+    </update>
+
+    <update id="reopen">
+        UPDATE pet_posts
+        SET status = 'OPEN', reserved_application_id = NULL, version = version + 1
+        WHERE id = #{id} AND status = 'RESERVED'
+    </update>
+
+    <update id="markCompleted">
+        UPDATE pet_posts
+        SET status = 'COMPLETED', completed_at = now(), version = version + 1
+        WHERE id = #{id} AND status = 'RESERVED'
+    </update>
+
+    <update id="update">
+        UPDATE pet_posts
+        SET title = #{title}, description = #{description}, version = version + 1
+        WHERE id = #{id} AND publisher_id = #{publisherId} AND status = 'OPEN'
+    </update>
+
+    <update id="close">
+        UPDATE pet_posts
+        SET status = 'CLOSED', version = version + 1
+        WHERE id = #{id} AND publisher_id = #{publisherId} AND status IN ('OPEN', 'RESERVED')
+    </update>
+
+    <update id="cancel">
+        UPDATE pet_posts
+        SET status = 'CANCELLED', version = version + 1
+        WHERE id = #{id} AND publisher_id = #{publisherId} AND status IN ('OPEN', 'RESERVED')
+    </update>
+
+</mapper>
