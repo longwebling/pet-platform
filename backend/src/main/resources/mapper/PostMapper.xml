@@ -27,7 +27,7 @@
         FROM pet_posts pp
         LEFT JOIN pets p ON pp.pet_id = p.id
         WHERE pp.id = #{id}
-        FOR UPDATE
+        FOR UPDATE OF pp
     </select>
 
     <select id="list" resultType="com.pethelp.post.entity.PetPost">
