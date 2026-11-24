@@ -24,4 +24,6 @@ public interface PetMapper {
     int softDelete(@Param("id") Long id, @Param("publisherId") Long publisherId);
 
     Map<String, Object> findExactLocation(@Param("id") Long id);
+
+    int transferOwnership(@Param("petId") Long petId, @Param("newOwnerId") Long newOwnerId, @Param("oldOwnerId") Long oldOwnerId);
 }

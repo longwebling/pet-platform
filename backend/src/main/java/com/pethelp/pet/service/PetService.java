@@ -17,4 +17,6 @@ public interface PetService {
     PetResponse archive(Long petId, Long currentUserId);
 
     void delete(Long petId, Long currentUserId);
+
+    void transferOwnershipToAdopter(Long petId, Long adopterId, Long arrangementId, Long operatorId);
 }

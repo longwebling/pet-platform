@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.pethelp.pet.mapper.PetAuthorizationMapper">
+
+    <select id="findActiveByPetAndGranteeAndType" resultType="com.pethelp.pet.entity.PetAuthorization">
+        SELECT id, pet_id, grantor_id, grantee_id, auth_type, status,
+               granted_at, expires_at, revoked_at, created_at
+        FROM pet_authorizations
+        WHERE pet_id = #{petId} AND grantee_id = #{granteeId} AND auth_type = #{authType} AND status = 'ACTIVE'
+        LIMIT 1
+    </select>
+
+</mapper>

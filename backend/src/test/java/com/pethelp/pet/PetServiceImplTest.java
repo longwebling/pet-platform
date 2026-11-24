@@ -8,7 +8,9 @@ import com.pethelp.pet.dto.CreatePetRequest;
 import com.pethelp.pet.dto.PetResponse;
 import com.pethelp.pet.dto.UpdatePetRequest;
 import com.pethelp.pet.entity.Pet;
+import com.pethelp.pet.entity.PetOwnershipHistory;
 import com.pethelp.pet.mapper.PetMapper;
+import com.pethelp.pet.mapper.PetOwnershipHistoryMapper;
 import com.pethelp.pet.service.PetService;
 import com.pethelp.pet.service.impl.PetServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,12 +28,14 @@ import static org.mockito.Mockito.when;
 class PetServiceImplTest {
 
     private PetMapper petMapper;
+    private PetOwnershipHistoryMapper petOwnershipHistoryMapper;
     private PetService service;
 
     @BeforeEach
     void setUp() {
         petMapper = mock(PetMapper.class);
-        service = new PetServiceImpl(petMapper);
+        petOwnershipHistoryMapper = mock(PetOwnershipHistoryMapper.class);
+        service = new PetServiceImpl(petMapper, petOwnershipHistoryMapper);
     }
 
     @Test
@@ -239,6 +243,27 @@ class PetServiceImplTest {
         service.delete(1L, 5L);
 
         verify(petMapper).softDelete(1L, 5L);
+    }
+
+    @Test
+    void transferOwnershipToAdopter_updatesPetAndWritesHistory() {
+        Pet pet = new Pet();
+        pet.setId(1L);
+        pet.setOwnerId(5L);
+        when(petMapper.findById(1L)).thenReturn(pet);
+
+        service.transferOwnershipToAdopter(1L, 7L, 100L, 5L);
+
+        verify(petMapper).transferOwnership(1L, 7L, 5L);
+        ArgumentCaptor<PetOwnershipHistory> captor = ArgumentCaptor.forClass(PetOwnershipHistory.class);
+        verify(petOwnershipHistoryMapper).insert(captor.capture());
+        PetOwnershipHistory history = captor.getValue();
+        assertThat(history.getPetId()).isEqualTo(1L);
+        assertThat(history.getFromOwnerId()).isEqualTo(5L);
+        assertThat(history.getToOwnerId()).isEqualTo(7L);
+        assertThat(history.getChangeType()).isEqualTo("ADOPTION");
+        assertThat(history.getArrangementId()).isEqualTo(100L);
+        assertThat(history.getChangedBy()).isEqualTo(5L);
     }
 
     @Test

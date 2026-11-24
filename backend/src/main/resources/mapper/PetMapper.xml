@@ -63,4 +63,10 @@
         FROM pets WHERE id = #{id} AND location IS NOT NULL
     </select>
 
+    <update id="transferOwnership">
+        UPDATE pets SET owner_id = #{newOwnerId}, current_custodian_id = #{newOwnerId},
+               ownership_status = 'OWNED', version = version + 1
+        WHERE id = #{petId}
+    </update>
+
 </mapper>

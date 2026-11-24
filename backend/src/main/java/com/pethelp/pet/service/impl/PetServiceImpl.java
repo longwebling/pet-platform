@@ -8,9 +8,12 @@ import com.pethelp.pet.dto.CreatePetRequest;
 import com.pethelp.pet.dto.PetResponse;
 import com.pethelp.pet.dto.UpdatePetRequest;
 import com.pethelp.pet.entity.Pet;
+import com.pethelp.pet.entity.PetOwnershipHistory;
 import com.pethelp.pet.mapper.PetMapper;
+import com.pethelp.pet.mapper.PetOwnershipHistoryMapper;
 import com.pethelp.pet.service.PetService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Set;
 
@@ -21,9 +24,11 @@ public class PetServiceImpl implements PetService {
     private static final Set<String> GENDERS = Set.of("MALE", "FEMALE", "UNKNOWN");
 
     private final PetMapper petMapper;
+    private final PetOwnershipHistoryMapper petOwnershipHistoryMapper;
 
-    public PetServiceImpl(PetMapper petMapper) {
+    public PetServiceImpl(PetMapper petMapper, PetOwnershipHistoryMapper petOwnershipHistoryMapper) {
         this.petMapper = petMapper;
+        this.petOwnershipHistoryMapper = petOwnershipHistoryMapper;
     }
 
     @Override
@@ -144,6 +149,27 @@ public class PetServiceImpl implements PetService {
         if (petMapper.softDelete(petId, currentUserId) == 0) {
             throw new ConflictException("当前状态不可删除");
         }
+    }
+
+    @Override
+    @Transactional
+    public void transferOwnershipToAdopter(Long petId, Long adopterId, Long arrangementId, Long operatorId) {
+        Pet pet = petMapper.findById(petId);
+        if (pet == null) {
+            throw new NotFoundException("宠物不存在");
+        }
+        Long oldOwnerId = pet.getOwnerId();
+        petMapper.transferOwnership(petId, adopterId, oldOwnerId);
+
+        PetOwnershipHistory history = new PetOwnershipHistory();
+        history.setPetId(petId);
+        history.setFromOwnerId(oldOwnerId);
+        history.setToOwnerId(adopterId);
+        history.setChangeType("ADOPTION");
+        history.setArrangementId(arrangementId);
+        history.setChangedBy(operatorId);
+        history.setReason("领养交接完成");
+        petOwnershipHistoryMapper.insert(history);
     }
 
     private void validate(String species, String breed, String age, String gender,
