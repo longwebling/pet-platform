@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.pethelp.arrangement.mapper.AdoptionArrangementMapper">
+
+    <sql id="arrangementColumns">
+        id, pet_id, post_id, application_id, adopter_id, custodian_id, status,
+        abort_reason, completed_at, version, created_at, updated_at
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO adoption_arrangements (pet_id, post_id, application_id, adopter_id, custodian_id, status)
+        VALUES (#{petId}, #{postId}, #{applicationId}, #{adopterId}, #{custodianId}, #{status})
+    </insert>
+
+    <select id="findById" resultType="com.pethelp.arrangement.entity.AdoptionArrangement">
+        SELECT <include refid="arrangementColumns"/>
+        FROM adoption_arrangements
+        WHERE id = #{id}
+    </select>
+
+    <select id="findByIdForUpdate" resultType="com.pethelp.arrangement.entity.AdoptionArrangement">
+        SELECT <include refid="arrangementColumns"/>
+        FROM adoption_arrangements
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
+    <update id="complete">
+        UPDATE adoption_arrangements
+        SET status = 'COMPLETED', completed_at = now(), version = version + 1
+        WHERE id = #{id} AND status = 'PENDING_HANDOVER'
+    </update>
+
+    <update id="cancel">
+        UPDATE adoption_arrangements
+        SET status = 'CANCELLED', version = version + 1
+        WHERE id = #{id} AND status = 'PENDING_HANDOVER'
+    </update>
+
+    <update id="abort">
+        UPDATE adoption_arrangements
+        SET status = 'ABORTED', abort_reason = #{reason}, version = version + 1
+        WHERE id = #{id} AND status = 'PENDING_HANDOVER'
+    </update>
+
+</mapper>

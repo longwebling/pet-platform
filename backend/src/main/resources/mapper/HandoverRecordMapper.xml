@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.pethelp.arrangement.mapper.HandoverRecordMapper">
+
+    <sql id="handoverColumns">
+        id, biz_type, biz_id, from_user_id, to_user_id, event,
+        confirmed_by_from, confirmed_by_to, occurred_at, created_at
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO handover_records (biz_type, biz_id, from_user_id, to_user_id, event, confirmed_by_from, confirmed_by_to)
+        VALUES (#{bizType}, #{bizId}, #{fromUserId}, #{toUserId}, #{event}, #{confirmedByFrom}, #{confirmedByTo})
+    </insert>
+
+    <select id="findByBizAndEvent" resultType="com.pethelp.arrangement.entity.HandoverRecord">
+        SELECT <include refid="handoverColumns"/>
+        FROM handover_records
+        WHERE biz_type = #{bizType} AND biz_id = #{bizId} AND event = #{event}
+    </select>
+
+    <update id="confirmByFrom">
+        UPDATE handover_records
+        SET confirmed_by_from = true
+        WHERE id = #{id} AND confirmed_by_from = false
+    </update>
+
+    <update id="confirmByTo">
+        UPDATE handover_records
+        SET confirmed_by_to = true
+        WHERE id = #{id} AND confirmed_by_to = false
+    </update>
+
+</mapper>
