@@ -2,13 +2,13 @@
 
 > 本文件是「当前进度快照 + 推荐下一步」的活文档，方便下一次快速接手。设计细节以 `docs/` 下各编号文档为准；每次里程碑完成后更新本文件。
 >
-> 更新日期：2026-11-23
+> 更新日期：2026-11-24
 
 ## 1. 一句话现状
 
-后端已完成 **用户认证 + 用户资料 + 宠物档案（含图片上传）+ 精确位置授权** 四大块，跑通「注册登录 → 发布宠物档案 → 上传图片 → 发布档案 → 授权他人查看精确位置」这条链路；尚未进入「发布领养信息 / 申请 / 交接」等核心业务闭环。全量测试 **90/90 通过**。
+后端已完成 **用户认证 + 用户资料 + 宠物档案（含图片上传）+ 精确位置授权 + 领养闭环（发布信息 / 申请审核 / 交接安排）** 五大块，跑通「注册登录 → 发布宠物档案 → 上传图片 → 发布档案 → 发布领养信息 → 申请 → 审批 → 交接确认 → 所有权转移」这条完整链路。全量测试 **133/133 通过**。
 
-当前分支 `feature/pet-profile`，领先 `main` 21 个提交、领先远程 `origin/feature/pet-profile` 8 个提交（远程推送因网络未完成）。
+当前分支 `feature/adoption-closed-loop`，领先 `main` 7 个提交（尚未推送远程）。
 
 ## 2. 已完成功能
 
@@ -19,6 +19,9 @@
 | 宠物档案 | `com.pethelp.pet` | `POST /pets`、`GET /pets/{id}`、`PATCH /pets/{id}`、`POST /pets/{id}/publish`、`/archive`、`/delete` | 档案 CRUD + 状态机（DRAFT→ACTIVE→ARCHIVED/DELETED），位置存 PostGIS（`location` + `geo_hash`），公开详情只回模糊位置 |
 | 图片 | `com.pethelp.picture` + `com.pethelp.pet` | `POST /pets/{id}/images`、`GET /pets/{id}/images` | 上传（魔数嗅探、数量/大小/归属/状态校验、自动过审）+ 列表（1 小时签名 URL）。存储/审核经 `ObjectStorage` / `ImageReviewService` 适配器隔离（本地内存实现，生产 OSS 待接） |
 | 位置授权 | `com.pethelp.pet` | `POST /pets/{id}/location-grants`、`GET /pets/{id}/exact-location`、`POST /location-grants/{id}/revoke` | 精确位置授权最小闭环：owner 授权指定用户查看精确坐标、被授权方查看（落 `address_visibility_logs` 审计）、owner 撤销。坐标用 `ST_X`/`ST_Y` 提取、不进实体；`(pet_id, grantee_id)` 局部唯一索引防重复授权 |
+| 发布信息 | `com.pethelp.post` | `POST /pet-posts`、`GET /pet-posts`、`GET /pet-posts/{id}`、`PATCH /pet-posts/{id}`、`POST /pet-posts/{id}/close|cancel|convert-to-adoption` | 领养/寻宠帖子（`post_type`=FINDING/ADOPTION，FOSTER 留 v0.2）发布/列表/详情/编辑/关闭/取消；自动过审（`verified_at=now`、`status=OPEN`）；寻主转领养 v0.1 仅校验（恒 409） |
+| 领养申请 | `com.pethelp.application` | `POST /adoption-posts/{id}/applications`、`POST /adoption-applications/{id}/withdraw|approve|reject` | 提交/撤回/通过/拒绝；通过为单事务（锁帖 `FOR UPDATE OF pp` → CAS `reserve` → 建安排 → 批量拒绝其余 → approve）；重复申请 409（`(post_id, adopter_id)` 局部唯一索引兜底） |
+| 交接安排 | `com.pethelp.arrangement` | `POST /adoption-arrangements/{id}/confirm-handover|cancel|abort` | 交接双确认（预建 `handover_records` + 确认位 CAS 幂等）、取消/异常终止（`reopen` 帖子）；完成时联动转移所有权（`owner_id`/`current_custodian_id`→领养人，落 `pet_ownership_history` `change_type=ADOPTION`） |
 
 **数据库**：`V1__init_schema.sql`（19 张表全量 DDL）、`V2__add_pets_deleted_at.sql`（软删除字段）、`V3__add_location_grant_unique_index.sql`（精确位置授权 ACTIVE 局部唯一索引）。Flyway 管理。
 
@@ -38,9 +41,9 @@
 尚未实现的核心能力，按 API 文档章节：
 
 - **5.2 位置隐私**：✅ 已完成（授权/查看/撤销三端点，见第 2 节「位置授权」行）。`location_type=AGREED`（约定交接位置）留待交接模块。
-- **5.3 发布信息**：`pet-posts`（`post_type` = FINDING / ADOPTION / FOSTER）的发布/列表/详情/编辑/下架/寻主转领养/取消。
-- **5.4 申请与审核**：`adoption-applications` / `foster-applications` 的提交、撤回、通过（**同事务批量拒绝其余**）、拒绝。
-- **5.5 交接与安排**：`adoption-arrangements` / `foster-orders` 的交接确认、归还确认、延期、取消、异常终止；`handover_records` 预创建 + 确认位幂等。
+- **5.3 发布信息**：✅ 领养闭环部分完成（FINDING + ADOPTION 的发布/列表/详情/编辑/关闭/取消/转领养校验）。**FOSTER（寄养）分支留 v0.2**。
+- **5.4 申请与审核**：✅ 领养申请完成（提交/撤回/通过/拒绝，通过同事务批量拒绝其余）。**`foster-applications` 留 v0.2**。
+- **5.5 交接与安排**：✅ 领养交接完成（交接双确认幂等 + 所有权联动）。**`foster-orders`（归还确认/延期）留 v0.2**。
 - **5.6 消息**：`conversations` / `messages`（会话、发送、已读）。
 - **5.7 运营与举报**：`reports`、`/admin/*`（举报处理、下架、封禁、精确位置特殊访问）。
 
@@ -48,15 +51,14 @@
 
 ## 5. 推荐下一步
 
-**立即收尾**：网络恢复后 `git push -u origin feature/pet-profile`，开 PR 到 `main` 或本地合并。
+**立即收尾**：网络恢复后 `git push -u origin feature/adoption-closed-loop`，开 PR 到 `main` 或本地合并。
 
-**下一里程碑 —— 完成 v0.1 领养闭环**（按依赖顺序推进）：
+**下一里程碑 —— v0.2 照护 + 治理**（按依赖顺序推进）：
 
-1. **发布信息 `pet-posts`（5.3）** —— 领养闭环核心，先做 FINDING + ADOPTION（FOSTER 留 v0.2）。位置授权已完成，`pet-posts` 可引用精确位置授权作为「授权领养人看精确位置」的地基。
-2. **领养申请与审核（5.4）** —— 含「通过 → 创建安排 + 同事务批量拒绝其余」这一并发关键点。
-3. **交接安排与确认（5.5）** —— `handover_records` 预创建、确认位幂等。
-
-**随后（v0.2 照护 + 治理）**：照护申请/工单/归还（含时段冲突 EXCLUDE 约束）→ 消息 → 举报/运营后台。
+1. **寄养/照护闭环** —— 补齐 5.3/5.4/5.5 的 FOSTER 分支（`foster-applications` / `foster-orders`），含归还确认、延期、时段冲突 EXCLUDE 约束。
+2. **消息（5.6）** —— `conversations` / `messages`（会话、发送、已读）。
+3. **举报与运营（5.7）** —— `reports`、`/admin/*`（举报处理、下架、封禁、精确位置特殊访问）。
+4. **处置授权授予（v0.2 前置）** —— `pet_authorizations.auth_type` 需 V4 迁移扩为 `varchar(32)`（当前 `varchar(16)` 存不下 `ADOPTION_APPROVAL`），并补「授权领养审批人」端点。
 
 **图片收尾（可穿插）**：封面图、删除图片、真实审核、OSS 接入。
 
@@ -75,7 +77,7 @@ mvn spring-boot:run                                        # 在 backend/ 下
 
 # 4. 全量测试（在 backend/ 下）
 mvn test                                                   # 或从仓库根：mvn -f backend/pom.xml test
-#    当前 90 个测试全绿；集成测试依赖 Docker
+#    当前 133 个测试全绿；集成测试依赖 Docker
 ```
 
 - 健康检查：`curl http://localhost:8080/actuator/health`。
