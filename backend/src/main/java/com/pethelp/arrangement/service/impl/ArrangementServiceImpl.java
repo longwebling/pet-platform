@@ -116,6 +116,10 @@ public class ArrangementServiceImpl implements ArrangementService {
         if (!"PENDING_HANDOVER".equals(arrangement.getStatus())) {
             throw new ConflictException("当前状态不可取消");
         }
+        if (!currentUserId.equals(arrangement.getAdopterId())
+                && !currentUserId.equals(arrangement.getCustodianId())) {
+            throw new ForbiddenException("仅交接双方可取消");
+        }
         adoptionArrangementMapper.cancel(arrangementId);
         postMapper.reopen(arrangement.getPostId());
         return toResponse(arrangement, "CANCELLED");
@@ -130,6 +134,10 @@ public class ArrangementServiceImpl implements ArrangementService {
         }
         if (!"PENDING_HANDOVER".equals(arrangement.getStatus())) {
             throw new ConflictException("当前状态不可中止");
+        }
+        if (!currentUserId.equals(arrangement.getAdopterId())
+                && !currentUserId.equals(arrangement.getCustodianId())) {
+            throw new ForbiddenException("仅交接双方可中止");
         }
         adoptionArrangementMapper.abort(arrangementId, reason);
         postMapper.reopen(arrangement.getPostId());

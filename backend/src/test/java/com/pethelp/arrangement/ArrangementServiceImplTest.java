@@ -184,4 +184,27 @@ class ArrangementServiceImplTest {
         verify(handoverRecordMapper).insert(any(HandoverRecord.class));
         assertThat(response.status()).isEqualTo("ABORTED");
     }
+
+    @Test
+    void cancel_notParticipant_throws403() {
+        when(adoptionArrangementMapper.findById(1L)).thenReturn(pendingArrangement());
+
+        assertThatThrownBy(() -> service.cancel(1L, 9L))
+                .isInstanceOf(ForbiddenException.class);
+
+        verify(adoptionArrangementMapper, never()).cancel(anyLong());
+        verify(postMapper, never()).reopen(anyLong());
+    }
+
+    @Test
+    void abort_notParticipant_throws403() {
+        when(adoptionArrangementMapper.findById(1L)).thenReturn(pendingArrangement());
+
+        assertThatThrownBy(() -> service.abort(1L, 9L, "领养人放弃"))
+                .isInstanceOf(ForbiddenException.class);
+
+        verify(adoptionArrangementMapper, never()).abort(anyLong(), any());
+        verify(postMapper, never()).reopen(anyLong());
+        verify(handoverRecordMapper, never()).insert(any(HandoverRecord.class));
+    }
 }
