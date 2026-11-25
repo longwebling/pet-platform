@@ -2,11 +2,11 @@
 
 > 本文件是「当前进度快照 + 推荐下一步」的活文档，方便下一次快速接手。设计细节以 `docs/` 下各编号文档为准；每次里程碑完成后更新本文件。
 >
-> 更新日期：2026-11-24
+> 更新日期：2026-11-25
 
 ## 1. 一句话现状
 
-后端已完成 **用户认证 + 用户资料 + 宠物档案（含图片上传）+ 精确位置授权 + 领养闭环（发布信息 / 申请审核 / 交接安排）** 五大块，跑通「注册登录 → 发布宠物档案 → 上传图片 → 发布档案 → 发布领养信息 → 申请 → 审批 → 交接确认 → 所有权转移」这条完整链路。全量测试 **138/138 通过**。
+后端已完成 **用户认证 + 用户资料 + 宠物档案（含图片上传）+ 精确位置授权 + 领养闭环（发布信息 / 申请审核 / 交接安排）+ 消息（会话 / 消息 / 已读）** 六大块，跑通「注册登录 → 发布宠物档案 → 上传图片 → 发布档案 → 发布领养信息 → 申请 → 审批 → 交接确认 → 所有权转移 → 双方站内消息沟通」这条完整链路，v0.1 领养闭环真正闭环。全量测试 **174/174 通过**。
 
 ## 2. 已完成功能
 
@@ -20,14 +20,15 @@
 | 发布信息 | `com.pethelp.post` | `POST /pet-posts`、`GET /pet-posts`、`GET /pet-posts/{id}`、`PATCH /pet-posts/{id}`、`POST /pet-posts/{id}/close|cancel|convert-to-adoption` | 领养/寻宠帖子（`post_type`=FINDING/ADOPTION，FOSTER 留 v0.2）发布/列表/详情/编辑/关闭/取消；自动过审（`verified_at=now`、`status=OPEN`）；寻主转领养 v0.1 仅校验（恒 409） |
 | 领养申请 | `com.pethelp.application` | `POST /adoption-posts/{id}/applications`、`POST /adoption-applications/{id}/withdraw|approve|reject` | 提交/撤回/通过/拒绝；通过为单事务（锁帖 `FOR UPDATE OF pp` → CAS `reserve` → 建安排 → 批量拒绝其余 → approve）；重复申请 409（`(post_id, adopter_id)` 局部唯一索引兜底） |
 | 交接安排 | `com.pethelp.arrangement` | `POST /adoption-arrangements/{id}/confirm-handover|cancel|abort` | 交接双确认（预建 `handover_records` + 确认位 CAS 幂等）、取消/异常终止（`reopen` 帖子）；完成时联动转移所有权（`owner_id`/`current_custodian_id`→领养人，落 `pet_ownership_history` `change_type=ADOPTION`） |
+| 消息 | `com.pethelp.message` | `GET /conversations`、`POST /conversations`、`GET /conversations/{id}/messages`、`POST /conversations/{id}/messages`、`POST /conversations/{id}/read`、`POST /messages/{id}/read` | 1:1 会话（列表/发起/防重复）、消息列表（游标分页 `before_id`/`after_id`、默认 10 条）、发送、已读（读游标 `last_read_message_id` 单行幂等）；发起需至少一方是帖子发布者；收发不受帖子状态影响 |
 
-**数据库**：`V1__init_schema.sql`（19 张表全量 DDL）、`V2__add_pets_deleted_at.sql`（软删除字段）、`V3__add_location_grant_unique_index.sql`（精确位置授权 ACTIVE 局部唯一索引）。Flyway 管理。
+**数据库**：`V1__init_schema.sql`（19 张表全量 DDL）、`V2__add_pets_deleted_at.sql`（软删除字段）、`V3__add_location_grant_unique_index.sql`（精确位置授权 ACTIVE 局部唯一索引）、`V4__add_conversation_last_read_message_id.sql`（会话参与者读游标列 + `conversations.post_id` 非空）。Flyway 管理。
 
 **基础设施**：Testcontainers（PostGIS + Redis）集成测试、MockMvc 流程测试、`backend/docker-compose.yml`（postgis + redis）。
 
 ## 3. 关键设计与约定（快速回忆）
 
-- 根包 `com.pethelp`，顶层按业务模块分：`auth` / `user` / `pet` / `picture` / `security` / `common`。模块内 `controller / service(+impl) / dto / entity / mapper` 分层，跨模块只依赖接口。详见 `.claude/skills/backend-package-architecture/SKILL.md`。
+- 根包 `com.pethelp`，顶层按业务模块分：`auth` / `user` / `pet` / `picture` / `post` / `application` / `arrangement` / `message` / `security` / `common`。模块内 `controller / service(+impl) / dto / entity / mapper` 分层，跨模块只依赖接口。详见 `.claude/skills/backend-package-architecture/SKILL.md`。
 - 统一响应 `ApiResponse { code, message, data }`；错误码与 HTTP 对齐（`40000`/`40100`/`40300`/`40400`/`40900`/`42900`/`50000`）。
 - 业务规则全在后端，前端不推进状态转移；归属与状态转移服务端校验。
 - 外部集成（短信、对象存储、图片审核）一律走 SPI/适配器 + `@ConditionalOnMissingBean` / `@ConditionalOnProperty`，本地/测试用内存或 dev 实现。
@@ -42,21 +43,20 @@
 - **5.3 发布信息**：✅ 领养闭环部分完成（FINDING + ADOPTION 的发布/列表/详情/编辑/关闭/取消/转领养校验）。**FOSTER（寄养）分支留 v0.2**。
 - **5.4 申请与审核**：✅ 领养申请完成（提交/撤回/通过/拒绝，通过同事务批量拒绝其余）。**`foster-applications` 留 v0.2**。
 - **5.5 交接与安排**：✅ 领养交接完成（交接双确认幂等 + 所有权联动）。**`foster-orders`（归还确认/延期）留 v0.2**。
-- **5.6 消息**：`conversations` / `messages`（会话、发送、已读）。
+- **5.6 消息**：✅ 已完成（会话列表/发起/防重复、消息列表/发送、已读游标，见第 2 节「消息」行）。
 - **5.7 运营与举报**：`reports`、`/admin/*`（举报处理、下架、封禁、精确位置特殊访问）。
 
 图片模块的 **deferred 项**（本轮明确不做，后续补）：封面图、删除图片、发布需 ≥1 张图门槛、真实/异步审核、OSS 真实接入。
 
 ## 5. 推荐下一步
 
-**立即收尾**：网络恢复后 `git push -u origin feature/adoption-closed-loop`，开 PR 到 `main` 或本地合并。
+**立即收尾**：`git push -u origin feature/message`，开 PR 到 `main` 或本地合并（本次消息模块 + 此前领养闭环均已就绪）。
 
 **下一里程碑 —— v0.2 照护 + 治理**（按依赖顺序推进）：
 
 1. **寄养/照护闭环** —— 补齐 5.3/5.4/5.5 的 FOSTER 分支（`foster-applications` / `foster-orders`），含归还确认、延期、时段冲突 EXCLUDE 约束。
-2. **消息（5.6）** —— `conversations` / `messages`（会话、发送、已读）。
-3. **举报与运营（5.7）** —— `reports`、`/admin/*`（举报处理、下架、封禁、精确位置特殊访问）。
-4. **处置授权授予（v0.2 前置）** —— `pet_authorizations.auth_type` 需 V4 迁移扩为 `varchar(32)`（当前 `varchar(16)` 存不下 `ADOPTION_APPROVAL`），并补「授权领养审批人」端点。
+2. **举报与运营（5.7）** —— `reports`、`/admin/*`（举报处理、下架、封禁、精确位置特殊访问）。
+3. **处置授权授予（v0.2 前置）** —— `pet_authorizations.auth_type` 需 V5 迁移扩为 `varchar(32)`（当前 `varchar(16)` 存不下 `ADOPTION_APPROVAL`），并补「授权领养审批人」端点。
 
 **图片收尾（可穿插）**：封面图、删除图片、真实审核、OSS 接入。
 
@@ -75,9 +75,9 @@ mvn spring-boot:run                                        # 在 backend/ 下
 
 # 4. 全量测试（在 backend/ 下）
 mvn test                                                   # 或从仓库根：mvn -f backend/pom.xml test
-#    当前 138 个测试全绿；集成测试依赖 Docker
+#    当前 174 个测试全绿；集成测试依赖 Docker
 ```
 
 - 健康检查：`curl http://localhost:8080/actuator/health`。
-- 登录联调步骤见 `docs/archive/login-flow.md`；图片上传联调见 `docs/archive/image-upload.md`；位置授权联调见 `docs/archive/location-access.md`。
-- 分支/提交历史：`git log --oneline main..feature/pet-profile` 可看到本轮全部工作。
+- 登录联调步骤见 `docs/archive/login-flow.md`；图片上传联调见 `docs/archive/image-upload.md`；位置授权联调见 `docs/archive/location-access.md`；领养闭环联调见 `docs/archive/adoption-closed-loop.md`；消息联调见 `docs/archive/message.md`。
+- 分支/提交历史：`git log --oneline main..feature/message` 可看到本轮全部工作。
