@@ -88,7 +88,7 @@ public class ConversationServiceImpl implements ConversationService {
         message.setSenderId(currentUserId);
         message.setContent(content);
         messageMapper.insert(message);
-        return toResponse(message);
+        return toResponse(messageMapper.findById(message.getId()));
     }
 
     @Override

@@ -74,7 +74,8 @@ class MessageFlowIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.content").value("你好，想了解一下交接时间"))
-                .andExpect(jsonPath("$.data.senderId").value(adopter.userId()));
+                .andExpect(jsonPath("$.data.senderId").value(adopter.userId()))
+                .andExpect(jsonPath("$.data.createdAt").isNotEmpty());
 
         mockMvc.perform(get("/api/v1/conversations/" + seed.conversationId() + "/messages")
                         .header("Authorization", "Bearer " + adopter.token()))
@@ -164,6 +165,29 @@ class MessageFlowIntegrationTest {
                         .header("Authorization", "Bearer " + stranger.token()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    void listConversations_sortedByLastMessageDesc() throws Exception {
+        Credentials owner = login("13900139130");
+        Credentials adopter1 = login("13900139131");
+        Credentials adopter2 = login("13900139132");
+        Seed older = seedConversation(owner, adopter1);
+        Seed newer = seedConversation(owner, adopter2);
+
+        jdbcTemplate.update(
+                "INSERT INTO messages (conversation_id, sender_id, content, created_at) VALUES (?, ?, ?, ?::timestamptz)",
+                newer.conversationId(), adopter2.userId(), "old", "2024-01-01T00:00:00Z");
+        jdbcTemplate.update(
+                "INSERT INTO messages (conversation_id, sender_id, content, created_at) VALUES (?, ?, ?, ?::timestamptz)",
+                older.conversationId(), adopter1.userId(), "new", "2024-02-01T00:00:00Z");
+
+        mockMvc.perform(get("/api/v1/conversations")
+                        .header("Authorization", "Bearer " + owner.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].id").value(older.conversationId()))
+                .andExpect(jsonPath("$.data[1].id").value(newer.conversationId()));
     }
 
     @Test

@@ -128,9 +128,9 @@ class ConversationServiceImplTest {
         doAnswer(inv -> {
             Message m = inv.getArgument(0);
             m.setId(9L);
-            m.setCreatedAt(OffsetDateTime.now());
             return 1;
         }).when(messageMapper).insert(any(Message.class));
+        when(messageMapper.findById(9L)).thenReturn(message(9L, ME, "你好"));
 
         MessageResponse response = service.sendMessage(ME, 1L, new SendMessageRequest("你好"));
 
@@ -138,6 +138,8 @@ class ConversationServiceImplTest {
         assertThat(response.conversationId()).isEqualTo(1L);
         assertThat(response.senderId()).isEqualTo(ME);
         assertThat(response.content()).isEqualTo("你好");
+        assertThat(response.createdAt()).isNotNull();
+        verify(messageMapper).findById(9L);
 
         ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
         verify(messageMapper).insert(captor.capture());

@@ -29,7 +29,14 @@
         JOIN conversation_participants cp_me ON cp_me.conversation_id = c.id AND cp_me.user_id = #{userId}
         JOIN conversation_participants cp_peer ON cp_peer.conversation_id = c.id AND cp_peer.user_id &lt;&gt; #{userId}
         JOIN users u ON u.id = cp_peer.user_id
-        ORDER BY c.id DESC
+        LEFT JOIN LATERAL (
+            SELECT m.created_at
+            FROM messages m
+            WHERE m.conversation_id = c.id
+            ORDER BY m.id DESC
+            LIMIT 1
+        ) lm ON TRUE
+        ORDER BY lm.created_at DESC NULLS LAST, c.id DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
