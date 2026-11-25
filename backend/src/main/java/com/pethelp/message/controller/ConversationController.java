@@ -58,4 +58,18 @@ public class ConversationController {
                                                     @RequestBody SendMessageRequest request) {
         return ApiResponse.ok(conversationService.sendMessage(currentUser.id(), id, request));
     }
+
+    @PostMapping("/conversations/{id}/read")
+    public ApiResponse<Void> markConversationRead(@PathVariable Long id,
+                                                  @AuthenticationPrincipal CurrentUser currentUser) {
+        conversationService.markConversationRead(currentUser.id(), id);
+        return ApiResponse.ok();
+    }
+
+    @PostMapping("/messages/{id}/read")
+    public ApiResponse<Void> markMessageRead(@PathVariable Long id,
+                                             @AuthenticationPrincipal CurrentUser currentUser) {
+        conversationService.markMessageRead(currentUser.id(), id);
+        return ApiResponse.ok();
+    }
 }

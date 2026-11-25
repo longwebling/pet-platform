@@ -16,4 +16,8 @@ public interface ConversationService {
     List<ConversationResponse> listConversations(Long currentUserId, int page, int size);
 
     ConversationResponse createConversation(Long currentUserId, CreateConversationRequest request);
+
+    void markConversationRead(Long currentUserId, Long conversationId);
+
+    void markMessageRead(Long currentUserId, Long messageId);
 }

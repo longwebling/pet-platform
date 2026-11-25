@@ -134,6 +134,28 @@ public class ConversationServiceImpl implements ConversationService {
         return buildSummary(conversation.getId(), currentUserId);
     }
 
+    @Override
+    public void markConversationRead(Long currentUserId, Long conversationId) {
+        requireConversationAndParticipant(currentUserId, conversationId);
+        conversationParticipantMapper.markAllRead(conversationId, currentUserId);
+    }
+
+    @Override
+    public void markMessageRead(Long currentUserId, Long messageId) {
+        Message message = messageMapper.findById(messageId);
+        if (message == null) {
+            throw new NotFoundException("消息不存在");
+        }
+        Long conversationId = message.getConversationId();
+        if (conversationParticipantMapper.exists(conversationId, currentUserId) == 0) {
+            throw new ForbiddenException("无权访问该会话");
+        }
+        if (message.getSenderId().equals(currentUserId)) {
+            throw new ForbiddenException("仅接收者可标记已读");
+        }
+        conversationParticipantMapper.advanceLastRead(conversationId, currentUserId, messageId);
+    }
+
     ConversationResponse buildSummary(Long conversationId, Long currentUserId) {
         ConversationListItem item = conversationMapper.findByIdWithPeer(conversationId, currentUserId);
         if (item == null) {

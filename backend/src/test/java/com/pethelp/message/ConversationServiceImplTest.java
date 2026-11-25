@@ -319,4 +319,72 @@ class ConversationServiceImplTest {
         verify(conversationMapper).insert(any(Conversation.class));
         verify(participantMapper, times(2)).insert(any(ConversationParticipant.class));
     }
+
+    @Test
+    void markConversationRead_success() {
+        when(conversationMapper.findById(1L)).thenReturn(conversation(1L));
+        when(participantMapper.exists(1L, ME)).thenReturn(1);
+        when(participantMapper.markAllRead(1L, ME)).thenReturn(1);
+
+        service.markConversationRead(ME, 1L);
+
+        verify(participantMapper).markAllRead(1L, ME);
+    }
+
+    @Test
+    void markConversationRead_notParticipant_forbidden() {
+        when(conversationMapper.findById(1L)).thenReturn(conversation(1L));
+        when(participantMapper.exists(1L, ME)).thenReturn(0);
+
+        assertThatThrownBy(() -> service.markConversationRead(ME, 1L))
+                .isInstanceOf(ForbiddenException.class);
+
+        verify(participantMapper, never()).markAllRead(1L, ME);
+    }
+
+    @Test
+    void markConversationRead_conversationNotFound_notFound() {
+        when(conversationMapper.findById(1L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.markConversationRead(ME, 1L))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void markMessageRead_success() {
+        when(messageMapper.findById(7L)).thenReturn(message(7L, 2L, "hi"));
+        when(participantMapper.exists(1L, ME)).thenReturn(1);
+        when(participantMapper.advanceLastRead(1L, ME, 7L)).thenReturn(1);
+
+        service.markMessageRead(ME, 7L);
+
+        verify(participantMapper).advanceLastRead(1L, ME, 7L);
+    }
+
+    @Test
+    void markMessageRead_sender_forbidden() {
+        when(messageMapper.findById(7L)).thenReturn(message(7L, ME, "hi"));
+
+        assertThatThrownBy(() -> service.markMessageRead(ME, 7L))
+                .isInstanceOf(ForbiddenException.class);
+
+        verify(participantMapper, never()).advanceLastRead(1L, ME, 7L);
+    }
+
+    @Test
+    void markMessageRead_notParticipant_forbidden() {
+        when(messageMapper.findById(7L)).thenReturn(message(7L, 2L, "hi"));
+        when(participantMapper.exists(1L, ME)).thenReturn(0);
+
+        assertThatThrownBy(() -> service.markMessageRead(ME, 7L))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void markMessageRead_messageNotFound_notFound() {
+        when(messageMapper.findById(7L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.markMessageRead(ME, 7L))
+                .isInstanceOf(NotFoundException.class);
+    }
 }

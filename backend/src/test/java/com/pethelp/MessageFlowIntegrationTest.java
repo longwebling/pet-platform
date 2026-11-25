@@ -220,6 +220,100 @@ class MessageFlowIntegrationTest {
                 .andExpect(jsonPath("$.code").value(40300));
     }
 
+    @Test
+    void markConversationRead_zeroesUnread() throws Exception {
+        Credentials owner = login("13900139090");
+        Credentials adopter = login("13900139091");
+        Seed seed = seedConversation(owner, adopter);
+
+        sendMessage(owner.token(), seed.conversationId(), "hi");
+
+        mockMvc.perform(get("/api/v1/conversations")
+                        .header("Authorization", "Bearer " + adopter.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].unreadCount").value(1));
+
+        mockMvc.perform(post("/api/v1/conversations/" + seed.conversationId() + "/read")
+                        .header("Authorization", "Bearer " + adopter.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        mockMvc.perform(get("/api/v1/conversations")
+                        .header("Authorization", "Bearer " + adopter.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].unreadCount").value(0));
+    }
+
+    @Test
+    void markMessageRead_idempotent() throws Exception {
+        Credentials owner = login("13900139100");
+        Credentials adopter = login("13900139101");
+        Seed seed = seedConversation(owner, adopter);
+
+        long messageId = sendMessage(owner.token(), seed.conversationId(), "hi");
+
+        mockMvc.perform(post("/api/v1/messages/" + messageId + "/read")
+                        .header("Authorization", "Bearer " + adopter.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        Long cursorAfterFirst = lastReadCursor(seed.conversationId(), adopter.userId());
+        assertThat(cursorAfterFirst).isEqualTo(messageId);
+
+        mockMvc.perform(post("/api/v1/messages/" + messageId + "/read")
+                        .header("Authorization", "Bearer " + adopter.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        Long cursorAfterSecond = lastReadCursor(seed.conversationId(), adopter.userId());
+        assertThat(cursorAfterSecond).isEqualTo(messageId);
+    }
+
+    @Test
+    void markMessageRead_sender_403() throws Exception {
+        Credentials owner = login("13900139110");
+        Credentials adopter = login("13900139111");
+        Seed seed = seedConversation(owner, adopter);
+
+        long messageId = sendMessage(owner.token(), seed.conversationId(), "hi");
+
+        mockMvc.perform(post("/api/v1/messages/" + messageId + "/read")
+                        .header("Authorization", "Bearer " + owner.token()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40300));
+    }
+
+    @Test
+    void markConversationRead_notParticipant_403() throws Exception {
+        Credentials owner = login("13900139120");
+        Credentials adopter = login("13900139121");
+        Credentials stranger = login("13900139122");
+        Seed seed = seedConversation(owner, adopter);
+
+        mockMvc.perform(post("/api/v1/conversations/" + seed.conversationId() + "/read")
+                        .header("Authorization", "Bearer " + stranger.token()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40300));
+    }
+
+    private long sendMessage(String token, long conversationId, String content) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/conversations/" + conversationId + "/messages")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("content", content))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString())
+                .path("data").path("id").asLong();
+    }
+
+    private Long lastReadCursor(long conversationId, long userId) {
+        return jdbcTemplate.queryForObject(
+                "SELECT last_read_message_id FROM conversation_participants WHERE conversation_id = ? AND user_id = ?",
+                Long.class, conversationId, userId);
+    }
+
     private long createConversation(String token, long postId, long peerUserId) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/conversations")
                         .header("Authorization", "Bearer " + token)

@@ -19,4 +19,16 @@
         VALUES (#{conversationId}, #{userId})
     </insert>
 
+    <update id="markAllRead">
+        UPDATE conversation_participants
+        SET last_read_message_id = (SELECT MAX(id) FROM messages WHERE conversation_id = #{conversationId})
+        WHERE conversation_id = #{conversationId} AND user_id = #{userId}
+    </update>
+
+    <update id="advanceLastRead">
+        UPDATE conversation_participants
+        SET last_read_message_id = GREATEST(COALESCE(last_read_message_id, 0), #{messageId})
+        WHERE conversation_id = #{conversationId} AND user_id = #{userId}
+    </update>
+
 </mapper>

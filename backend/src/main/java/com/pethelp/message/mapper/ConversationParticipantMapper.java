@@ -12,4 +12,9 @@ public interface ConversationParticipantMapper {
     Long findLastReadMessageId(@Param("conversationId") Long conversationId, @Param("userId") Long userId);
 
     int insert(ConversationParticipant participant);
+
+    int markAllRead(@Param("conversationId") Long conversationId, @Param("userId") Long userId);
+
+    int advanceLastRead(@Param("conversationId") Long conversationId, @Param("userId") Long userId,
+                        @Param("messageId") Long messageId);
 }
