@@ -14,4 +14,9 @@
         WHERE conversation_id = #{conversationId} AND user_id = #{userId}
     </select>
 
+    <insert id="insert">
+        INSERT INTO conversation_participants (conversation_id, user_id)
+        VALUES (#{conversationId}, #{userId})
+    </insert>
+
 </mapper>

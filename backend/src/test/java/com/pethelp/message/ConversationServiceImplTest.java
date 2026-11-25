@@ -5,15 +5,21 @@ import com.pethelp.common.exception.ForbiddenException;
 import com.pethelp.common.exception.NotFoundException;
 import com.pethelp.message.dto.ConversationListItem;
 import com.pethelp.message.dto.ConversationResponse;
+import com.pethelp.message.dto.CreateConversationRequest;
 import com.pethelp.message.dto.MessageResponse;
 import com.pethelp.message.dto.SendMessageRequest;
 import com.pethelp.message.entity.Conversation;
+import com.pethelp.message.entity.ConversationParticipant;
 import com.pethelp.message.entity.Message;
 import com.pethelp.message.mapper.ConversationMapper;
 import com.pethelp.message.mapper.ConversationParticipantMapper;
 import com.pethelp.message.mapper.MessageMapper;
 import com.pethelp.message.service.ConversationService;
 import com.pethelp.message.service.impl.ConversationServiceImpl;
+import com.pethelp.post.entity.PetPost;
+import com.pethelp.post.mapper.PostMapper;
+import com.pethelp.user.entity.User;
+import com.pethelp.user.mapper.UserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -27,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,6 +44,8 @@ class ConversationServiceImplTest {
     private MessageMapper messageMapper;
     private ConversationMapper conversationMapper;
     private ConversationParticipantMapper participantMapper;
+    private PostMapper postMapper;
+    private UserMapper userMapper;
     private ConversationService service;
 
     @BeforeEach
@@ -44,7 +53,10 @@ class ConversationServiceImplTest {
         messageMapper = mock(MessageMapper.class);
         conversationMapper = mock(ConversationMapper.class);
         participantMapper = mock(ConversationParticipantMapper.class);
-        service = new ConversationServiceImpl(messageMapper, conversationMapper, participantMapper);
+        postMapper = mock(PostMapper.class);
+        userMapper = mock(UserMapper.class);
+        service = new ConversationServiceImpl(messageMapper, conversationMapper, participantMapper,
+                postMapper, userMapper);
     }
 
     private Conversation conversation(long id) {
@@ -226,5 +238,85 @@ class ConversationServiceImplTest {
         assertThat(result.get(0).lastMessage().content()).isEqualTo("hi");
         assertThat(result.get(0).unreadCount()).isEqualTo(3L);
         assertThat(result.get(0).firstUnreadMessageId()).isEqualTo(7L);
+    }
+
+    private PetPost post(long publisherId) {
+        PetPost p = new PetPost();
+        p.setId(10L);
+        p.setPublisherId(publisherId);
+        return p;
+    }
+
+    private User user(long id) {
+        User u = new User();
+        u.setId(id);
+        u.setNickname("小明");
+        return u;
+    }
+
+    private void stubSummaryChain(long conversationId, long me, long peerId) {
+        ConversationListItem item = new ConversationListItem();
+        item.setConversationId(conversationId);
+        item.setPostId(10L);
+        item.setPeerId(peerId);
+        item.setPeerNickname("小明");
+        item.setPeerAvatar(null);
+        when(conversationMapper.findByIdWithPeer(conversationId, me)).thenReturn(item);
+        when(messageMapper.findLastMessage(conversationId)).thenReturn(null);
+        when(participantMapper.findLastReadMessageId(conversationId, me)).thenReturn(null);
+        when(messageMapper.countUnread(conversationId, me, null)).thenReturn(0L);
+        when(messageMapper.findFirstUnreadId(conversationId, me, null)).thenReturn(null);
+    }
+
+    @Test
+    void createConversation_neitherPublisher_forbidden() {
+        when(postMapper.findById(10L)).thenReturn(post(2L));
+        when(userMapper.findById(4L)).thenReturn(user(4L));
+
+        assertThatThrownBy(() -> service.createConversation(3L, new CreateConversationRequest(10L, 4L)))
+                .isInstanceOf(ForbiddenException.class);
+
+        verify(conversationMapper, never()).insert(any(Conversation.class));
+    }
+
+    @Test
+    void createConversation_self_badRequest() {
+        when(postMapper.findById(10L)).thenReturn(post(2L));
+        when(userMapper.findById(2L)).thenReturn(user(2L));
+
+        assertThatThrownBy(() -> service.createConversation(2L, new CreateConversationRequest(10L, 2L)))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void createConversation_existingIdempotent() {
+        when(postMapper.findById(10L)).thenReturn(post(2L));
+        when(userMapper.findById(3L)).thenReturn(user(3L));
+        when(conversationMapper.findExistingIdByPostAndPair(10L, 2L, 3L)).thenReturn(99L);
+        stubSummaryChain(99L, 2L, 3L);
+
+        ConversationResponse result = service.createConversation(2L, new CreateConversationRequest(10L, 3L));
+
+        assertThat(result.id()).isEqualTo(99L);
+        verify(conversationMapper, never()).insert(any(Conversation.class));
+    }
+
+    @Test
+    void createConversation_new_insertsParticipants() {
+        when(postMapper.findById(10L)).thenReturn(post(2L));
+        when(userMapper.findById(3L)).thenReturn(user(3L));
+        when(conversationMapper.findExistingIdByPostAndPair(10L, 2L, 3L)).thenReturn(null);
+        doAnswer(inv -> {
+            Conversation c = inv.getArgument(0);
+            c.setId(99L);
+            return 1;
+        }).when(conversationMapper).insert(any(Conversation.class));
+        stubSummaryChain(99L, 2L, 3L);
+
+        ConversationResponse result = service.createConversation(2L, new CreateConversationRequest(10L, 3L));
+
+        assertThat(result.id()).isEqualTo(99L);
+        verify(conversationMapper).insert(any(Conversation.class));
+        verify(participantMapper, times(2)).insert(any(ConversationParticipant.class));
     }
 }

@@ -5,15 +5,22 @@ import com.pethelp.common.exception.ForbiddenException;
 import com.pethelp.common.exception.NotFoundException;
 import com.pethelp.message.dto.ConversationListItem;
 import com.pethelp.message.dto.ConversationResponse;
+import com.pethelp.message.dto.CreateConversationRequest;
 import com.pethelp.message.dto.MessageResponse;
 import com.pethelp.message.dto.ParticipantSummary;
 import com.pethelp.message.dto.SendMessageRequest;
+import com.pethelp.message.entity.Conversation;
+import com.pethelp.message.entity.ConversationParticipant;
 import com.pethelp.message.entity.Message;
 import com.pethelp.message.mapper.ConversationMapper;
 import com.pethelp.message.mapper.ConversationParticipantMapper;
 import com.pethelp.message.mapper.MessageMapper;
 import com.pethelp.message.service.ConversationService;
+import com.pethelp.post.entity.PetPost;
+import com.pethelp.post.mapper.PostMapper;
+import com.pethelp.user.mapper.UserMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.Comparator;
@@ -28,13 +35,19 @@ public class ConversationServiceImpl implements ConversationService {
     private final MessageMapper messageMapper;
     private final ConversationMapper conversationMapper;
     private final ConversationParticipantMapper conversationParticipantMapper;
+    private final PostMapper postMapper;
+    private final UserMapper userMapper;
 
     public ConversationServiceImpl(MessageMapper messageMapper,
                                    ConversationMapper conversationMapper,
-                                   ConversationParticipantMapper conversationParticipantMapper) {
+                                   ConversationParticipantMapper conversationParticipantMapper,
+                                   PostMapper postMapper,
+                                   UserMapper userMapper) {
         this.messageMapper = messageMapper;
         this.conversationMapper = conversationMapper;
         this.conversationParticipantMapper = conversationParticipantMapper;
+        this.postMapper = postMapper;
+        this.userMapper = userMapper;
     }
 
     @Override
@@ -86,12 +99,54 @@ public class ConversationServiceImpl implements ConversationService {
                 .toList();
     }
 
+    @Override
+    @Transactional
+    public ConversationResponse createConversation(Long currentUserId, CreateConversationRequest request) {
+        Long postId = request.postId();
+        Long peerUserId = request.peerUserId();
+
+        PetPost post = postMapper.findById(postId);
+        if (post == null) {
+            throw new NotFoundException("帖子不存在");
+        }
+        if (userMapper.findById(peerUserId) == null) {
+            throw new NotFoundException("用户不存在");
+        }
+        if (peerUserId.equals(currentUserId)) {
+            throw new BadRequestException("不能给自己发消息");
+        }
+        if (!currentUserId.equals(post.getPublisherId()) && !peerUserId.equals(post.getPublisherId())) {
+            throw new ForbiddenException("至少一方须为帖子发布者");
+        }
+
+        Long existingId = conversationMapper.findExistingIdByPostAndPair(postId, currentUserId, peerUserId);
+        if (existingId != null) {
+            return buildSummary(existingId, currentUserId);
+        }
+
+        Conversation conversation = new Conversation();
+        conversation.setPostId(postId);
+        conversationMapper.insert(conversation);
+
+        insertParticipant(conversation.getId(), currentUserId);
+        insertParticipant(conversation.getId(), peerUserId);
+
+        return buildSummary(conversation.getId(), currentUserId);
+    }
+
     ConversationResponse buildSummary(Long conversationId, Long currentUserId) {
         ConversationListItem item = conversationMapper.findByIdWithPeer(conversationId, currentUserId);
         if (item == null) {
             throw new NotFoundException("会话不存在");
         }
         return toConversationResponse(item, currentUserId);
+    }
+
+    private void insertParticipant(Long conversationId, Long userId) {
+        ConversationParticipant participant = new ConversationParticipant();
+        participant.setConversationId(conversationId);
+        participant.setUserId(userId);
+        conversationParticipantMapper.insert(participant);
     }
 
     private ConversationResponse toConversationResponse(ConversationListItem item, Long me) {

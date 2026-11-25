@@ -16,4 +16,8 @@ public interface ConversationMapper {
                                           @Param("limit") int limit);
 
     ConversationListItem findByIdWithPeer(@Param("conversationId") Long conversationId, @Param("userId") Long userId);
+
+    int insert(Conversation conversation);
+
+    Long findExistingIdByPostAndPair(@Param("postId") Long postId, @Param("me") Long me, @Param("peer") Long peer);
 }

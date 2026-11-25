@@ -166,6 +166,72 @@ class MessageFlowIntegrationTest {
                 .andExpect(jsonPath("$.data.length()").value(0));
     }
 
+    @Test
+    void createConversation_ok() throws Exception {
+        Credentials owner = login("13900139050");
+        Credentials adopter = login("13900139051");
+        long petId = createPet(owner.token());
+        publish(owner.token(), petId);
+        long postId = createAdoptionPost(owner.token(), petId);
+
+        mockMvc.perform(post("/api/v1/conversations")
+                        .header("Authorization", "Bearer " + adopter.token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("postId", postId, "peerUserId", owner.userId()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.id").isNumber())
+                .andExpect(jsonPath("$.data.postId").value(postId))
+                .andExpect(jsonPath("$.data.peer.id").value(owner.userId()));
+    }
+
+    @Test
+    void createConversation_idempotent() throws Exception {
+        Credentials owner = login("13900139060");
+        Credentials adopter = login("13900139061");
+        long petId = createPet(owner.token());
+        publish(owner.token(), petId);
+        long postId = createAdoptionPost(owner.token(), petId);
+
+        long firstId = createConversation(adopter.token(), postId, owner.userId());
+        long secondId = createConversation(adopter.token(), postId, owner.userId());
+
+        assertThat(firstId).isEqualTo(secondId);
+
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM conversations WHERE post_id = ?", Integer.class, postId);
+        assertThat(count).isEqualTo(1);
+    }
+
+    @Test
+    void createConversation_neitherPublisher_403() throws Exception {
+        Credentials owner = login("13900139070");
+        Credentials stranger1 = login("13900139071");
+        Credentials stranger2 = login("13900139072");
+        long petId = createPet(owner.token());
+        publish(owner.token(), petId);
+        long postId = createAdoptionPost(owner.token(), petId);
+
+        mockMvc.perform(post("/api/v1/conversations")
+                        .header("Authorization", "Bearer " + stranger1.token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("postId", postId, "peerUserId", stranger2.userId()))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40300));
+    }
+
+    private long createConversation(String token, long postId, long peerUserId) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/conversations")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("postId", postId, "peerUserId", peerUserId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString())
+                .path("data").path("id").asLong();
+    }
+
     private Seed seedConversation(Credentials owner, Credentials adopter) throws Exception {
         long petId = createPet(owner.token());
         publish(owner.token(), petId);
