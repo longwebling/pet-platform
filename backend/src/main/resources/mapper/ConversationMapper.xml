@@ -8,4 +8,25 @@
         WHERE id = #{id}
     </select>
 
+    <select id="listByUser" resultType="com.pethelp.message.dto.ConversationListItem">
+        SELECT c.id AS conversation_id, c.post_id,
+               u.id AS peer_id, u.nickname AS peer_nickname, u.avatar AS peer_avatar
+        FROM conversations c
+        JOIN conversation_participants cp_me ON cp_me.conversation_id = c.id AND cp_me.user_id = #{userId}
+        JOIN conversation_participants cp_peer ON cp_peer.conversation_id = c.id AND cp_peer.user_id &lt;&gt; #{userId}
+        JOIN users u ON u.id = cp_peer.user_id
+        ORDER BY c.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="findByIdWithPeer" resultType="com.pethelp.message.dto.ConversationListItem">
+        SELECT c.id AS conversation_id, c.post_id,
+               u.id AS peer_id, u.nickname AS peer_nickname, u.avatar AS peer_avatar
+        FROM conversations c
+        JOIN conversation_participants cp_me ON cp_me.conversation_id = c.id AND cp_me.user_id = #{userId}
+        JOIN conversation_participants cp_peer ON cp_peer.conversation_id = c.id AND cp_peer.user_id &lt;&gt; #{userId}
+        JOIN users u ON u.id = cp_peer.user_id
+        WHERE c.id = #{conversationId}
+    </select>
+
 </mapper>

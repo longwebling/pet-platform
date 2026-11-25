@@ -3,6 +3,8 @@ package com.pethelp.message;
 import com.pethelp.common.exception.BadRequestException;
 import com.pethelp.common.exception.ForbiddenException;
 import com.pethelp.common.exception.NotFoundException;
+import com.pethelp.message.dto.ConversationListItem;
+import com.pethelp.message.dto.ConversationResponse;
 import com.pethelp.message.dto.MessageResponse;
 import com.pethelp.message.dto.SendMessageRequest;
 import com.pethelp.message.entity.Conversation;
@@ -198,5 +200,31 @@ class ConversationServiceImplTest {
         service.listMessages(ME, 1L, null, null, null);
 
         verify(messageMapper).findLatest(1L, 10);
+    }
+
+    @Test
+    void listConversations_buildsSummary() {
+        ConversationListItem item = new ConversationListItem();
+        item.setConversationId(1L);
+        item.setPostId(10L);
+        item.setPeerId(2L);
+        item.setPeerNickname("小明");
+        item.setPeerAvatar(null);
+        when(conversationMapper.listByUser(ME, 0, 20)).thenReturn(List.of(item));
+        when(messageMapper.findLastMessage(1L)).thenReturn(message(8L, 2L, "hi"));
+        when(participantMapper.findLastReadMessageId(1L, ME)).thenReturn(5L);
+        when(messageMapper.countUnread(1L, ME, 5L)).thenReturn(3L);
+        when(messageMapper.findFirstUnreadId(1L, ME, 5L)).thenReturn(7L);
+
+        List<ConversationResponse> result = service.listConversations(ME, 1, 20);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).id()).isEqualTo(1L);
+        assertThat(result.get(0).postId()).isEqualTo(10L);
+        assertThat(result.get(0).peer().id()).isEqualTo(2L);
+        assertThat(result.get(0).peer().nickname()).isEqualTo("小明");
+        assertThat(result.get(0).lastMessage().content()).isEqualTo("hi");
+        assertThat(result.get(0).unreadCount()).isEqualTo(3L);
+        assertThat(result.get(0).firstUnreadMessageId()).isEqualTo(7L);
     }
 }

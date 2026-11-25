@@ -8,4 +8,10 @@
         WHERE conversation_id = #{conversationId} AND user_id = #{userId}
     </select>
 
+    <select id="findLastReadMessageId" resultType="java.lang.Long">
+        SELECT last_read_message_id
+        FROM conversation_participants
+        WHERE conversation_id = #{conversationId} AND user_id = #{userId}
+    </select>
+
 </mapper>

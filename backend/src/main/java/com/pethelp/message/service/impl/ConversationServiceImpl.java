@@ -3,7 +3,10 @@ package com.pethelp.message.service.impl;
 import com.pethelp.common.exception.BadRequestException;
 import com.pethelp.common.exception.ForbiddenException;
 import com.pethelp.common.exception.NotFoundException;
+import com.pethelp.message.dto.ConversationListItem;
+import com.pethelp.message.dto.ConversationResponse;
 import com.pethelp.message.dto.MessageResponse;
+import com.pethelp.message.dto.ParticipantSummary;
 import com.pethelp.message.dto.SendMessageRequest;
 import com.pethelp.message.entity.Message;
 import com.pethelp.message.mapper.ConversationMapper;
@@ -12,6 +15,7 @@ import com.pethelp.message.mapper.MessageMapper;
 import com.pethelp.message.service.ConversationService;
 import org.springframework.stereotype.Service;
 
+import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
 
@@ -72,6 +76,36 @@ public class ConversationServiceImpl implements ConversationService {
         message.setContent(content);
         messageMapper.insert(message);
         return toResponse(message);
+    }
+
+    @Override
+    public List<ConversationResponse> listConversations(Long currentUserId, int page, int size) {
+        int offset = (page - 1) * size;
+        return conversationMapper.listByUser(currentUserId, offset, size).stream()
+                .map(item -> toConversationResponse(item, currentUserId))
+                .toList();
+    }
+
+    ConversationResponse buildSummary(Long conversationId, Long currentUserId) {
+        ConversationListItem item = conversationMapper.findByIdWithPeer(conversationId, currentUserId);
+        if (item == null) {
+            throw new NotFoundException("会话不存在");
+        }
+        return toConversationResponse(item, currentUserId);
+    }
+
+    private ConversationResponse toConversationResponse(ConversationListItem item, Long me) {
+        Long conversationId = item.getConversationId();
+        Message lastMessage = messageMapper.findLastMessage(conversationId);
+        Long lastReadMessageId = conversationParticipantMapper.findLastReadMessageId(conversationId, me);
+        long unreadCount = messageMapper.countUnread(conversationId, me, lastReadMessageId);
+        Long firstUnreadId = messageMapper.findFirstUnreadId(conversationId, me, lastReadMessageId);
+
+        ParticipantSummary peer = new ParticipantSummary(item.getPeerId(), item.getPeerNickname(), item.getPeerAvatar());
+        MessageResponse lastMessageResponse = lastMessage == null ? null : toResponse(lastMessage);
+        OffsetDateTime lastMessageAt = lastMessage == null ? null : lastMessage.getCreatedAt();
+        return new ConversationResponse(conversationId, item.getPostId(), peer, lastMessageResponse,
+                unreadCount, firstUnreadId, lastMessageAt);
     }
 
     private void requireConversationAndParticipant(Long currentUserId, Long conversationId) {

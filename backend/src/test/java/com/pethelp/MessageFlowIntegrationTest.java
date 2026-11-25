@@ -137,6 +137,35 @@ class MessageFlowIntegrationTest {
                 .andExpect(jsonPath("$.code").value(0));
     }
 
+    @Test
+    void listConversations_returnsUnreadSummary() throws Exception {
+        Credentials owner = login("13900139040");
+        Credentials adopter = login("13900139041");
+        Credentials stranger = login("13900139042");
+        Seed seed = seedConversation(owner, adopter);
+
+        mockMvc.perform(post("/api/v1/conversations/" + seed.conversationId() + "/messages")
+                        .header("Authorization", "Bearer " + adopter.token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("content", "hi"))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/conversations")
+                        .header("Authorization", "Bearer " + owner.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].id").value(seed.conversationId()))
+                .andExpect(jsonPath("$.data[0].peer.id").value(adopter.userId()))
+                .andExpect(jsonPath("$.data[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.data[0].firstUnreadMessageId").isNumber())
+                .andExpect(jsonPath("$.data[0].lastMessage.content").value("hi"));
+
+        mockMvc.perform(get("/api/v1/conversations")
+                        .header("Authorization", "Bearer " + stranger.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
     private Seed seedConversation(Credentials owner, Credentials adopter) throws Exception {
         long petId = createPet(owner.token());
         publish(owner.token(), petId);

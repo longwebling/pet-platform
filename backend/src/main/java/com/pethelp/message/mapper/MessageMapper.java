@@ -20,4 +20,12 @@ public interface MessageMapper {
 
     List<Message> findAfter(@Param("conversationId") Long conversationId, @Param("afterId") Long afterId,
                             @Param("limit") int limit);
+
+    Message findLastMessage(@Param("conversationId") Long conversationId);
+
+    long countUnread(@Param("conversationId") Long conversationId, @Param("userId") Long userId,
+                     @Param("lastReadMessageId") Long lastReadMessageId);
+
+    Long findFirstUnreadId(@Param("conversationId") Long conversationId, @Param("userId") Long userId,
+                           @Param("lastReadMessageId") Long lastReadMessageId);
 }

@@ -1,6 +1,7 @@
 package com.pethelp.message.controller;
 
 import com.pethelp.common.ApiResponse;
+import com.pethelp.message.dto.ConversationResponse;
 import com.pethelp.message.dto.MessageResponse;
 import com.pethelp.message.dto.SendMessageRequest;
 import com.pethelp.message.service.ConversationService;
@@ -24,6 +25,14 @@ public class ConversationController {
 
     public ConversationController(ConversationService conversationService) {
         this.conversationService = conversationService;
+    }
+
+    @GetMapping("/conversations")
+    public ApiResponse<List<ConversationResponse>> listConversations(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ApiResponse.ok(conversationService.listConversations(currentUser.id(), page, size));
     }
 
     @GetMapping("/conversations/{id}/messages")

@@ -41,4 +41,26 @@
         LIMIT #{limit}
     </select>
 
+    <select id="findLastMessage" resultType="com.pethelp.message.entity.Message">
+        SELECT <include refid="messageColumns"/>
+        FROM messages
+        WHERE conversation_id = #{conversationId}
+        ORDER BY id DESC
+        LIMIT 1
+    </select>
+
+    <select id="countUnread" resultType="long">
+        SELECT COUNT(*)
+        FROM messages
+        WHERE conversation_id = #{conversationId} AND sender_id &lt;&gt; #{userId}
+          AND id &gt; COALESCE(#{lastReadMessageId}, 0)
+    </select>
+
+    <select id="findFirstUnreadId" resultType="java.lang.Long">
+        SELECT MIN(id)
+        FROM messages
+        WHERE conversation_id = #{conversationId} AND sender_id &lt;&gt; #{userId}
+          AND id &gt; COALESCE(#{lastReadMessageId}, 0)
+    </select>
+
 </mapper>

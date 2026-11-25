@@ -7,4 +7,6 @@ import org.apache.ibatis.annotations.Param;
 public interface ConversationParticipantMapper {
 
     int exists(@Param("conversationId") Long conversationId, @Param("userId") Long userId);
+
+    Long findLastReadMessageId(@Param("conversationId") Long conversationId, @Param("userId") Long userId);
 }
