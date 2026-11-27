@@ -109,6 +109,45 @@ class AdminServiceImplTest {
     }
 
     @Test
+    void takeDownPost_casZeroRows_409() {
+        PetPost post = new PetPost();
+        post.setId(1L);
+        post.setStatus("OPEN");
+        when(postMapper.findById(1L)).thenReturn(post);
+        when(postMapper.takeDown(1L)).thenReturn(0);
+
+        CurrentUser ops = new CurrentUser(2L, List.of("ops"));
+        assertThatThrownBy(() -> service.takeDownPost(ops, 1L))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void rejectPost_casZeroRows_409() {
+        PetPost post = new PetPost();
+        post.setId(1L);
+        post.setStatus("OPEN");
+        when(postMapper.findById(1L)).thenReturn(post);
+        when(postMapper.reject(1L, "reason")).thenReturn(0);
+
+        CurrentUser ops = new CurrentUser(2L, List.of("ops"));
+        assertThatThrownBy(() -> service.rejectPost(ops, 1L, new RejectPostRequest("reason")))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void verifyPost_casZeroRows_409() {
+        PetPost post = new PetPost();
+        post.setId(1L);
+        post.setStatus("REJECTED");
+        when(postMapper.findById(1L)).thenReturn(post);
+        when(postMapper.verify(1L)).thenReturn(0);
+
+        CurrentUser ops = new CurrentUser(2L, List.of("ops"));
+        assertThatThrownBy(() -> service.verifyPost(ops, 1L))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
     void banUser_byAdmin_ok() {
         User user = new User();
         user.setId(5L);

@@ -95,7 +95,9 @@ public class ReportServiceImpl implements ReportService {
         if (action == null || !ACTIONS.contains(action)) {
             throw new BadRequestException("处理动作非法");
         }
-        reportMapper.handle(reportId, action, currentUser.id());
+        if (reportMapper.handle(reportId, action, currentUser.id()) == 0) {
+            throw new ConflictException("举报已处理");
+        }
         report.setStatus(action);
         report.setHandledBy(currentUser.id());
         return toResponse(report);

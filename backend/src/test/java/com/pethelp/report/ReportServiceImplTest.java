@@ -132,6 +132,19 @@ class ReportServiceImplTest {
     }
 
     @Test
+    void handle_casZeroRows_409() {
+        Report report = new Report();
+        report.setId(1L);
+        report.setStatus("PENDING");
+        when(reportMapper.findById(1L)).thenReturn(report);
+        when(reportMapper.handle(1L, "RESOLVED", 2L)).thenReturn(0);
+
+        CurrentUser ops = new CurrentUser(2L, List.of("ops"));
+        assertThatThrownBy(() -> service.handle(ops, 1L, new HandleReportRequest("RESOLVED")))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
     void handle_badAction_400() {
         Report report = new Report();
         report.setId(1L);
