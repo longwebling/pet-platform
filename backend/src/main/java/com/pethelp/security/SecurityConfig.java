@@ -26,6 +26,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/pets/*/images").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/pet-posts", "/api/v1/pet-posts/*").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers("/api/v1/admin/**").hasAnyRole("ops", "admin")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(entryPoint))
