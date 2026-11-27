@@ -2,11 +2,11 @@
 
 > 本文件是「当前进度快照 + 推荐下一步」的活文档，方便下一次快速接手。设计细节以 `docs/` 下各编号文档为准；每次里程碑完成后更新本文件。
 >
-> 更新日期：2026-11-25
+> 更新日期：2026-11-27
 
 ## 1. 一句话现状
 
-后端已完成 **用户认证 + 用户资料 + 宠物档案（含图片上传）+ 精确位置授权 + 领养闭环（发布信息 / 申请审核 / 交接安排）+ 消息（会话 / 消息 / 已读）** 六大块，跑通「注册登录 → 发布宠物档案 → 上传图片 → 发布档案 → 发布领养信息 → 申请 → 审批 → 交接确认 → 所有权转移 → 双方站内消息沟通」这条完整链路，v0.1 领养闭环真正闭环。全量测试 **174/174 通过**。
+后端已完成 **用户认证 + 用户资料 + 宠物档案（含图片上传）+ 精确位置授权 + 领养闭环（发布信息 / 申请审核 / 交接安排）+ 消息（会话 / 消息 / 已读）+ 举报与运营（举报 / 帖子审核 / 图片审核 / 封禁 / 精确位置访问）** 七大块，跑通「注册登录 → 发布宠物档案 → 上传图片 → 发布档案 → 发布领养信息 → 申请 → 审批 → 交接确认 → 所有权转移 → 双方站内消息沟通」这条完整链路，v0.1 领养闭环真正闭环。全量测试 **210/210 通过**。
 
 ## 2. 已完成功能
 
@@ -21,6 +21,7 @@
 | 领养申请 | `com.pethelp.application` | `POST /adoption-posts/{id}/applications`、`POST /adoption-applications/{id}/withdraw|approve|reject` | 提交/撤回/通过/拒绝；通过为单事务（锁帖 `FOR UPDATE OF pp` → CAS `reserve` → 建安排 → 批量拒绝其余 → approve）；重复申请 409（`(post_id, adopter_id)` 局部唯一索引兜底） |
 | 交接安排 | `com.pethelp.arrangement` | `POST /adoption-arrangements/{id}/confirm-handover|cancel|abort` | 交接双确认（预建 `handover_records` + 确认位 CAS 幂等）、取消/异常终止（`reopen` 帖子）；完成时联动转移所有权（`owner_id`/`current_custodian_id`→领养人，落 `pet_ownership_history` `change_type=ADOPTION`） |
 | 消息 | `com.pethelp.message` | `GET /conversations`、`POST /conversations`、`GET /conversations/{id}/messages`、`POST /conversations/{id}/messages`、`POST /conversations/{id}/read`、`POST /messages/{id}/read` | 1:1 会话（列表/发起/防重复）、消息列表（游标分页 `before_id`/`after_id`、默认 10 条）、发送、已读（读游标 `last_read_message_id` 单行幂等）；发起需至少一方是帖子发布者；收发不受帖子状态影响 |
+| 举报与运营 | `com.pethelp.report` + `com.pethelp.admin` + `com.pethelp.security` | `POST /reports`、`GET /admin/reports`、`POST /admin/reports/{id}/handle`、`POST /admin/posts/{id}/take-down|reject|verify`、`GET /admin/posts`、`POST /admin/images/{id}/approve|reject`、`GET /admin/images`、`POST /admin/users/{id}/ban`、`POST /admin/pets/{id}/exact-location` | 举报（创建/列表/处理，`PENDING→RESOLVED|DISMISSED` 单次终结）；帖子/图片**事后审核**（自动过审 + 运营二次审核，下架/驳回/恢复）；封禁（仅 `admin`，登录拦截 `BANNED`）；ops 精确位置访问（跳过授权门槛但落 `address_visibility_logs` 审计）。`/admin/**` 角色门禁 `hasAnyRole("ops","admin")`，普通用户 403/40300 |
 
 **数据库**：`V1__init_schema.sql`（19 张表全量 DDL）、`V2__add_pets_deleted_at.sql`（软删除字段）、`V3__add_location_grant_unique_index.sql`（精确位置授权 ACTIVE 局部唯一索引）、`V4__add_conversation_last_read_message_id.sql`（会话参与者读游标列 + `conversations.post_id` 非空）。Flyway 管理。
 
@@ -44,19 +45,18 @@
 - **5.4 申请与审核**：✅ 领养申请完成（提交/撤回/通过/拒绝，通过同事务批量拒绝其余）。**`foster-applications` 留 v0.2**。
 - **5.5 交接与安排**：✅ 领养交接完成（交接双确认幂等 + 所有权联动）。**`foster-orders`（归还确认/延期）留 v0.2**。
 - **5.6 消息**：✅ 已完成（会话列表/发起/防重复、消息列表/发送、已读游标，见第 2 节「消息」行）。
-- **5.7 运营与举报**：`reports`、`/admin/*`（举报处理、下架、封禁、精确位置特殊访问）。
+- **5.7 运营与举报**：✅ 已完成（举报创建/列表/处理 + `/admin/*` 帖子/图片审核、下架、封禁、精确位置特殊访问，见第 2 节「举报与运营」行）。
 
 图片模块的 **deferred 项**（本轮明确不做，后续补）：封面图、删除图片、发布需 ≥1 张图门槛、真实/异步审核、OSS 真实接入。
 
 ## 5. 推荐下一步
 
-**立即收尾**：`git push -u origin feature/message`，开 PR 到 `main` 或本地合并（本次消息模块 + 此前领养闭环均已就绪）。
+**立即收尾**：`git push -u origin feature/report-admin`，开 PR 到 `main` 或本地合并（本次举报与运营模块 + 此前消息模块与领养闭环均已就绪）。
 
 **下一里程碑 —— v0.2 照护 + 治理**（按依赖顺序推进）：
 
 1. **寄养/照护闭环** —— 补齐 5.3/5.4/5.5 的 FOSTER 分支（`foster-applications` / `foster-orders`），含归还确认、延期、时段冲突 EXCLUDE 约束。
-2. **举报与运营（5.7）** —— `reports`、`/admin/*`（举报处理、下架、封禁、精确位置特殊访问）。
-3. **处置授权授予（v0.2 前置）** —— `pet_authorizations.auth_type` 需 V5 迁移扩为 `varchar(32)`（当前 `varchar(16)` 存不下 `ADOPTION_APPROVAL`），并补「授权领养审批人」端点。
+2. **处置授权授予（v0.2 前置）** —— `pet_authorizations.auth_type` 需 V5 迁移扩为 `varchar(32)`（当前 `varchar(16)` 存不下 `ADOPTION_APPROVAL`），并补「授权领养审批人」端点。
 
 **图片收尾（可穿插）**：封面图、删除图片、真实审核、OSS 接入。
 
@@ -75,9 +75,9 @@ mvn spring-boot:run                                        # 在 backend/ 下
 
 # 4. 全量测试（在 backend/ 下）
 mvn test                                                   # 或从仓库根：mvn -f backend/pom.xml test
-#    当前 174 个测试全绿；集成测试依赖 Docker
+#    当前 210 个测试全绿；集成测试依赖 Docker
 ```
 
 - 健康检查：`curl http://localhost:8080/actuator/health`。
-- 登录联调步骤见 `docs/archive/login-flow.md`；图片上传联调见 `docs/archive/image-upload.md`；位置授权联调见 `docs/archive/location-access.md`；领养闭环联调见 `docs/archive/adoption-closed-loop.md`；消息联调见 `docs/archive/message.md`。
-- 分支/提交历史：`git log --oneline main..feature/message` 可看到本轮全部工作。
+- 登录联调步骤见 `docs/archive/login-flow.md`；图片上传联调见 `docs/archive/image-upload.md`；位置授权联调见 `docs/archive/location-access.md`；领养闭环联调见 `docs/archive/adoption-closed-loop.md`；消息联调见 `docs/archive/message.md`；举报与运营联调见 `docs/archive/report-admin.md`。
+- 分支/提交历史：`git log --oneline main..feature/report-admin` 可看到本轮全部工作。
