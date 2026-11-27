@@ -82,4 +82,35 @@
         WHERE id = #{id} AND publisher_id = #{publisherId} AND status IN ('OPEN', 'RESERVED')
     </update>
 
+    <update id="takeDown">
+        UPDATE pet_posts
+        SET status = 'CLOSED', version = version + 1
+        WHERE id = #{id} AND status IN ('OPEN', 'RESERVED')
+    </update>
+
+    <update id="reject">
+        UPDATE pet_posts
+        SET status = 'REJECTED', reject_reason = #{reason}, version = version + 1
+        WHERE id = #{id} AND status IN ('OPEN', 'RESERVED')
+    </update>
+
+    <update id="verify">
+        UPDATE pet_posts
+        SET status = 'OPEN', verified_at = now(), reject_reason = NULL, version = version + 1
+        WHERE id = #{id} AND status = 'REJECTED'
+    </update>
+
+    <select id="listForAdmin" resultType="com.pethelp.post.entity.PetPost">
+        SELECT <include refid="postColumns"/>
+        FROM pet_posts pp
+        LEFT JOIN pets p ON pp.pet_id = p.id
+        <where>
+            <if test="status != null and status != ''">
+                AND pp.status = #{status}
+            </if>
+        </where>
+        ORDER BY pp.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
 </mapper>

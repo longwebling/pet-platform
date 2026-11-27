@@ -30,4 +30,12 @@ public interface PostMapper {
     int close(@Param("id") Long id, @Param("publisherId") Long publisherId);
 
     int cancel(@Param("id") Long id, @Param("publisherId") Long publisherId);
+
+    int takeDown(@Param("id") Long id);
+
+    int reject(@Param("id") Long id, @Param("reason") String reason);
+
+    int verify(@Param("id") Long id);
+
+    List<PetPost> listForAdmin(@Param("status") String status, @Param("offset") int offset, @Param("limit") int limit);
 }
