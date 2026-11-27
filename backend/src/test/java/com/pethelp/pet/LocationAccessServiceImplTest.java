@@ -19,6 +19,7 @@ import com.pethelp.user.entity.User;
 import com.pethelp.user.mapper.UserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -231,6 +232,36 @@ class LocationAccessServiceImplTest {
         LocationGrantResponse response = service.revoke(10L, 5L);
 
         assertThat(response.status()).isEqualTo("REVOKED");
+    }
+
+    @Test
+    void getExactLocationForOps_petNotFound_404() {
+        when(petMapper.findById(99L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.getExactLocationForOps(99L, 2L))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void getExactLocationForOps_writesAuditAndReturnsCoords() {
+        Pet pet = new Pet();
+        pet.setId(1L);
+        pet.setPublisherId(10L);
+        when(petMapper.findById(1L)).thenReturn(pet);
+        when(petMapper.findExactLocation(1L)).thenReturn(location(121.5, 31.2));
+
+        ExactLocationResponse response = service.getExactLocationForOps(1L, 2L);
+
+        assertThat(response.lng()).isEqualTo(121.5);
+        assertThat(response.lat()).isEqualTo(31.2);
+
+        ArgumentCaptor<AddressVisibilityLog> captor = ArgumentCaptor.forClass(AddressVisibilityLog.class);
+        verify(visibilityLogMapper).insert(captor.capture());
+        AddressVisibilityLog log = captor.getValue();
+        assertThat(log.getViewerId()).isEqualTo(2L);
+        assertThat(log.getPetId()).isEqualTo(1L);
+        assertThat(log.getAddressType()).isEqualTo("EXACT");
+        assertThat(log.getPostId()).isNull();
     }
 
     private Map<String, Object> location(double lng, double lat) {

@@ -10,5 +10,7 @@ public interface LocationAccessService {
 
     ExactLocationResponse getExactLocation(Long petId, Long currentUserId);
 
+    ExactLocationResponse getExactLocationForOps(Long petId, Long viewerId);
+
     LocationGrantResponse revoke(Long grantId, Long currentUserId);
 }

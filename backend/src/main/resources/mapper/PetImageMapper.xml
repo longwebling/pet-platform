@@ -21,4 +21,28 @@
         ORDER BY id
     </select>
 
+    <select id="findById" resultType="com.pethelp.pet.entity.PetImage">
+        SELECT id, pet_id, uploader_id, file_key, file_type, review_status
+        FROM pet_images
+        WHERE id = #{id}
+    </select>
+
+    <select id="list" resultType="com.pethelp.pet.entity.PetImage">
+        SELECT id, pet_id, uploader_id, file_key, file_type, review_status
+        FROM pet_images
+        <where>
+            <if test="reviewStatus != null and reviewStatus != ''">
+                AND review_status = #{reviewStatus}
+            </if>
+        </where>
+        ORDER BY id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <update id="updateReviewStatus">
+        UPDATE pet_images
+        SET review_status = #{status}
+        WHERE id = #{id}
+    </update>
+
 </mapper>

@@ -99,6 +99,22 @@ public class LocationAccessServiceImpl implements LocationAccessService {
     }
 
     @Override
+    public ExactLocationResponse getExactLocationForOps(Long petId, Long viewerId) {
+        Pet pet = petMapper.findById(petId);
+        if (pet == null) {
+            throw new NotFoundException("宠物不存在");
+        }
+        ExactLocationResponse response = resolveExactLocation(petId);
+        AddressVisibilityLog log = new AddressVisibilityLog();
+        log.setViewerId(viewerId);
+        log.setPetId(petId);
+        log.setPostId(null);
+        log.setAddressType("EXACT");
+        visibilityLogMapper.insert(log);
+        return response;
+    }
+
+    @Override
     public LocationGrantResponse revoke(Long grantId, Long currentUserId) {
         LocationAccessGrant grant = grantMapper.findById(grantId);
         if (grant == null) {
