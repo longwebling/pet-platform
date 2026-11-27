@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.pethelp.report.mapper.ReportMapper">
+
+    <resultMap id="reportMap" type="com.pethelp.report.entity.Report">
+        <id property="id" column="id"/>
+        <result property="reporterId" column="reporter_id"/>
+        <result property="targetType" column="target_type"/>
+        <result property="targetId" column="target_id"/>
+        <result property="reason" column="reason"/>
+        <result property="status" column="status"/>
+        <result property="handledBy" column="handled_by"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO reports (reporter_id, target_type, target_id, reason, status, created_at)
+        VALUES (#{reporterId}, #{targetType}, #{targetId}, #{reason}, #{status}, #{createdAt})
+    </insert>
+
+    <select id="findById" resultMap="reportMap">
+        SELECT id, reporter_id, target_type, target_id, reason, status, handled_by, created_at
+        FROM reports
+        WHERE id = #{id}
+    </select>
+
+    <select id="list" resultMap="reportMap">
+        SELECT id, reporter_id, target_type, target_id, reason, status, handled_by, created_at
+        FROM reports
+        <where>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <update id="handle">
+        UPDATE reports
+        SET status = #{status}, handled_by = #{handledBy}
+        WHERE id = #{id} AND status = 'PENDING'
+    </update>
+</mapper>
