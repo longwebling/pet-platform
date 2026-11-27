@@ -5,6 +5,7 @@ import com.pethelp.auth.dto.LoginResponse;
 import com.pethelp.auth.service.AuthService;
 import com.pethelp.auth.sms.SmsCodeService;
 import com.pethelp.auth.token.JwtService;
+import com.pethelp.common.exception.ForbiddenException;
 import com.pethelp.common.exception.InvalidSmsCodeException;
 import com.pethelp.user.entity.User;
 import com.pethelp.user.mapper.UserMapper;
@@ -37,6 +38,9 @@ public class AuthServiceImpl implements AuthService {
         }
 
         User user = userMapper.findByPhone(request.phone());
+        if (user != null && "BANNED".equals(user.getStatus())) {
+            throw new ForbiddenException("账号已被封禁");
+        }
         if (user == null) {
             user = new User();
             user.setPhone(request.phone());

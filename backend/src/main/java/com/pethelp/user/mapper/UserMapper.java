@@ -14,4 +14,6 @@ public interface UserMapper {
     int insert(User user);
 
     int updateProfile(User user);
+
+    int updateStatus(@Param("id") Long id, @Param("status") String status);
 }
